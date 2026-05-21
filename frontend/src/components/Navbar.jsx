@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../features/auth/authSlice';
 
-/* ─── Inline styles (mirrors the SML CSS reference) ─────────────────────── */
+/* Inline styles */
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;600;700&display=swap');
   @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap');
@@ -32,7 +32,7 @@ const styles = `
     box-sizing: border-box;
   }
 
-  /* ── Clusters ── */
+  /* Clusters */
   #eco-navbar .eco-left,
   #eco-navbar .eco-right {
     display: flex;
@@ -40,7 +40,7 @@ const styles = `
     gap: 0.25rem;
   }
 
-  /* ── Individual link ── */
+  /* Individual link */
   #eco-navbar .eco-nav-link {
     position: relative;
     display: inline-flex;
@@ -97,7 +97,7 @@ const styles = `
     opacity: 1;
   }
 
-  /* ── Text scroll effect ── */
+  /* Text scroll effect */
   #eco-navbar .link-text {
     display: block;
     overflow: hidden;
@@ -160,7 +160,7 @@ const styles = `
     color: #15803d;
   }
 
-  /* ── Centre logo ── */
+  /* Centre logo */
   #eco-navbar .eco-logo-wrap {
     position: absolute;
     left: 50%;
@@ -215,7 +215,7 @@ const styles = `
     text-transform: uppercase;
   }
 
-  /* ── Menu trigger (mobile) ── */
+  /* Menu trigger (mobile) */
   #eco-navbar .eco-menu-trigger {
     display: none;
     align-items: center;
@@ -249,7 +249,7 @@ const styles = `
     transform: translateY(-50%);
   }
 
-  /* ── Mobile drawer ── */
+  /* Mobile drawer */
   .eco-mobile-menu {
     display: none;
     position: fixed;
@@ -289,7 +289,7 @@ const styles = `
     margin: 0.5rem 0;
   }
 
-  /* ── Responsive ── */
+  /* Responsive */
   @media (max-width: 1000px) {
     #eco-navbar .eco-left,
     #eco-navbar .eco-right { display: none; }
@@ -312,7 +312,7 @@ const styles = `
   }
 `;
 
-/* ─── NavLink helper ────────────────────────────────────────────────────── */
+/* NavLink helper */
 const NavLink = ({ to, label, className = '', onClick }) => {
   const Tag = onClick ? 'button' : Link;
   const extraProps = onClick ? { onClick } : { to };
@@ -331,7 +331,7 @@ const NavLink = ({ to, label, className = '', onClick }) => {
   );
 };
 
-/* ─── Component ─────────────────────────────────────────────────────────── */
+/* Component */
 const Navbar = () => {
   const { isAuthenticated, user } = useSelector((state) => state.auth);
   const dispatch = useDispatch();
@@ -380,24 +380,24 @@ const Navbar = () => {
       <style>{styles}</style>
 
       <nav id="eco-navbar">
-        {/* ── Left cluster ── */}
+        {/* Left cluster */}
         <div className="eco-left">
           {isAuthenticated ? authLinks : <NavLink to="/" label="Home" />}
         </div>
 
-        {/* ── Centre logo ── */}
+        {/* Centre logo */}
         <Link to="/" className="eco-logo-wrap">
           <div className="eco-logo-inner">
             <span>GoGreenPy</span>
           </div>
         </Link>
 
-        {/* ── Right cluster ── */}
+        {/* Right cluster */}
         <div className="eco-right">
           {rightLinks}
         </div>
 
-        {/* ── Mobile menu trigger ── */}
+        {/* Mobile menu trigger */}
         <button
           className={`eco-menu-trigger${menuOpen ? ' open' : ''}`}
           aria-label="Toggle menu"
@@ -412,7 +412,7 @@ const Navbar = () => {
         </button>
       </nav>
 
-      {/* ── Mobile drawer ── */}
+      {/* Mobile drawer */}
       <div className={`eco-mobile-menu${menuOpen ? ' open' : ''}`}>
         {isAuthenticated ? (
           <>
