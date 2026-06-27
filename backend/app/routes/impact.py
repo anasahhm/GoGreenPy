@@ -1,7 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from app.schemas.impact import ImpactInput, ImpactResponse, ImpactHistory
+from app.schemas.rewards import RewardSummary, CouponOut
 from app.auth.dependencies import get_current_user
 from app.database import get_database
+from app.utils.rewards import points_for_rating, get_eco_level
+from app.services import supabase_client as sb
 from app.utils.calculations import (
     calculate_carbon_footprint,
     calculate_water_score,
@@ -189,6 +192,64 @@ async def calculate_impact(
         logger.error("DB insert failed: %s", exc)
         record_id = "local"
 
+    # ── Reward processing ─────────────────────────────────────────────────────
+    reward_summary = None
+    try:
+        rdb          = await get_database()
+        points_delta = points_for_rating(overall_rating)
+
+        profile    = await rdb.reward_profiles.find_one({"user_id": current_user["id"]})
+        old_points = profile.get("total_points", 0) if profile else 0
+        new_points = old_points + points_delta
+
+        await rdb.reward_profiles.update_one(
+            {"user_id": current_user["id"]},
+            {"$set": {"total_points": new_points, "updated_at": datetime.utcnow()}},
+            upsert=True,
+        )
+
+        # Auto-claim: reserve one available coupon the user newly qualifies for
+        newly_claimed = []
+        try:
+            available = await sb.fetch_available_coupons()
+            eligible  = [
+                c for c in available
+                if c.get("required_points", 0) <= new_points
+                and c.get("required_points", 0) > old_points   # newly crossed threshold
+            ]
+            for coupon in eligible[:1]:   # claim at most one per calculation
+                reserved = await sb.atomic_reserve(coupon["id"], current_user["id"])
+                if reserved:
+                    from app.services.coupon_service import _enrich
+                    newly_claimed.append(
+                        CouponOut(**_enrich(reserved, current_user["id"], new_points))
+                    )
+        except Exception as ce:
+            logger.error("Auto-claim failed: %s", ce)
+
+        claimed_ids = [c.id for c in newly_claimed]
+        txn = {
+            "user_id":               current_user["id"],
+            "points_delta":          points_delta,
+            "points_after":          new_points,
+            "reason":                f"{overall_rating} impact rating",
+            "overall_rating":        overall_rating,
+            "impact_log_id":         record_id,
+            "newly_claimed_coupons": claimed_ids,
+            "created_at":            datetime.utcnow(),
+        }
+        await rdb.reward_transactions.insert_one(txn)
+
+        eco_level     = get_eco_level(new_points)
+        reward_summary = RewardSummary(
+            points_delta=points_delta,
+            total_points=new_points,
+            eco_level=eco_level["label"],
+            newly_claimed_coupons=newly_claimed,
+        )
+    except Exception as exc:
+        logger.error("Reward processing failed: %s", exc)
+
     return ImpactResponse(
         id              = record_id,
         carbon_score    = carbon_score,
@@ -201,6 +262,7 @@ async def calculate_impact(
         tips            = tips,
         ai_analysis     = ai_analysis,
         weather_insight = weather_insight,
+        reward_summary  = reward_summary,
         created_at      = datetime.utcnow(),
     )
 

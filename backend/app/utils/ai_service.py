@@ -1,59 +1,44 @@
-"""
-ai_service.py — AI-powered tips and analysis using Anthropic Claude API
-(replaces the non-working Gemini integration)
-
-Requirements:
-  pip install anthropic
-
-Environment variables:
-  ANTHROPIC_API_KEY — get a free key at https://console.anthropic.com
-                      (free tier includes ~5 USD credit; no credit card required)
-"""
-
 import os
 import json
 from typing import List, Dict, Optional
-import anthropic
+from google import genai
 
-# ─── Client ───────────────────────────────────────────────────────────────────
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 
-def _get_client() -> Optional[anthropic.Anthropic]:
-    """Return an Anthropic client, or None if key is not set."""
-    if not ANTHROPIC_API_KEY:
+def _get_client():
+    if not GEMINI_API_KEY:
         return None
-    return anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    return genai.Client(api_key=GEMINI_API_KEY)
 
 
 def get_ai_enabled() -> bool:
-    return bool(ANTHROPIC_API_KEY)
+    return bool(GEMINI_API_KEY)
 
 
-# ─── Helper: call Claude with a simple user prompt ───────────────────────────
 
-def _claude(
+def _gemini(
     prompt: str,
-    system: str = "You are an expert environmental sustainability advisor.",
+    system: str = "",
     max_tokens: int = 800,
-) -> Optional[str]:
-    """Call Claude claude-haiku-4-5 (fast + cheap) and return text, or None on error."""
+):
     client = _get_client()
+
     if not client:
         return None
+
     try:
-        message = client.messages.create(
-            model="claude-haiku-4-5-20251001",   # fast, cheapest Claude model
-            max_tokens=max_tokens,
-            system=system,
-            messages=[{"role": "user", "content": prompt}],
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=f"{system}\n\n{prompt}",
         )
-        return message.content[0].text.strip()
+
+        return response.text.strip()
+
     except Exception as e:
-        print(f"[ai_service] Claude API error: {e}")
+        print(f"[ai_service] Gemini API error: {e}")
         return None
 
 
-# ─── Public API ───────────────────────────────────────────────────────────────
 
 def generate_ai_tips(
     transport_method: str,
@@ -151,7 +136,7 @@ Respond ONLY with a valid JSON array, no markdown, no preamble:
   ...
 ]"""
 
-    result = _claude(prompt, max_tokens=900)
+    result = _gemini(prompt, max_tokens=900)
     if result:
         try:
             # Strip any accidental markdown fences
@@ -221,7 +206,7 @@ Your analysis should:
 
 Write in a friendly, direct tone. No bullet points. Plain text only."""
 
-    result = _claude(prompt, max_tokens=300)
+    result = _gemini(prompt, max_tokens=300)
     return result or (
         f"Your carbon footprint is {carbon_score} kg CO₂/day — "
         f"{'above' if carbon_vs_avg > 0 else 'below'} average. Rating: {overall_rating}."
@@ -249,14 +234,14 @@ User's carbon score today: {carbon_score} kg CO₂
 
 Keep it specific, practical, and under 50 words. Plain text only."""
 
-    result = _claude(prompt, max_tokens=120)
+    result = _gemini(prompt, max_tokens=120)
     return result or ""
 
 
 def chat_with_ai(message: str, context: Dict = None) -> str:
     """EcoBot — environmental Q&A chatbot."""
     if not get_ai_enabled():
-        return "AI chatbot is not available. Set ANTHROPIC_API_KEY in your backend .env file."
+        return "AI chatbot is not available. Set GEMINI_API_KEY in your backend .env file."
 
     context_str = ""
     if context:
@@ -270,11 +255,10 @@ def chat_with_ai(message: str, context: Dict = None) -> str:
     )
 
     prompt = f"User question: {message}{context_str}"
-    result = _claude(prompt, system=system, max_tokens=200)
+    result = _gemini(prompt, system=system, max_tokens=200)
     return result or "I'm having trouble right now. Please try again in a moment."
 
 
-# ─── Keep legacy function signature for backward compatibility ────────────────
 
 def generate_comparison_insight(user_carbon: float, avg_carbon: float = 5.0) -> str:
     """Quick comparison sentence (no AI needed)."""

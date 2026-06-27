@@ -62,6 +62,7 @@ class ImpactResponse(BaseModel):
     tips:           List[Any]                  = Field(default_factory=list)
     ai_analysis:    Optional[str]              = None
     weather_insight: Optional[str]             = None
+    reward_summary: Optional[Any]              = None
     created_at:     datetime
 
 

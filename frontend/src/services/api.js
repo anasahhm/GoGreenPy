@@ -38,3 +38,11 @@ export const getAllLogs = (page = 1, pageSize = 20) =>
   api.get(`/admin/logs?page=${page}&page_size=${pageSize}`);
 
 export default api;
+
+// ── Rewards APIs ─────────────────────────────────────────────────────────────
+export const getMyRewardsSummary   = ()             => api.get('/rewards/me');
+export const getMarketplace        = ()             => api.get('/rewards/marketplace');
+export const claimCoupon           = (couponId)     => api.post(`/rewards/claim/${couponId}`);
+export const redeemCoupon          = (couponId)     => api.post(`/rewards/redeem/${couponId}`);
+export const getRewardHistory      = (page = 1, pageSize = 10) =>
+  api.get(`/rewards/history?page=${page}&page_size=${pageSize}`);

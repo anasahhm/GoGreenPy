@@ -55,7 +55,7 @@ const AIChatbot = () => {
             </div>
             <div>
               <h3 className="font-bold text-lg leading-tight">Green Assistant</h3>
-              <p className="text-sm opacity-90">Powered by Anthropic</p>
+              <p className="text-sm opacity-90">Powered by Gemini </p>
             </div>
           </div>
 

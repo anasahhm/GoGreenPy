@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+load_dotenv()  # must run before any module reads os.getenv
 from app.database import connect_to_mongo, close_mongo_connection
-from app.routes import auth, impact, admin
+from app.routes import auth, impact, admin, rewards
 
 app = FastAPI(
     title="GoGreenPy API",
@@ -31,6 +33,7 @@ async def shutdown_db_client():
 app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 app.include_router(impact.router, prefix="/impact", tags=["Impact Analysis"])
 app.include_router(admin.router, prefix="/admin", tags=["Admin"])
+app.include_router(rewards.router, prefix="/rewards", tags=["Rewards"])
 
 @app.get("/")
 async def root():

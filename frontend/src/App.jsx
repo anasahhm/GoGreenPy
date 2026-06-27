@@ -7,6 +7,7 @@ import Signup from './pages/Signup';
 import Dashboard from './pages/Dashboard';
 import Analyzer from './pages/Analyzer';
 import History from './pages/History';
+import Rewards from './pages/Rewards';
 import AdminPanel from './pages/AdminPanel';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -33,6 +34,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Analyzer />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/rewards" 
+          element={
+            <ProtectedRoute>
+              <Rewards />
             </ProtectedRoute>
           } 
         />

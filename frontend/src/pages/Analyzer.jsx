@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { calculateImpact } from '../services/api';
 import { useWeatherData } from '../components/WeatherWidget';
+import RewardSummaryWidget from '../components/rewards/RewardSummaryWidget';
+import RewardUnlockPopup from '../components/rewards/RewardUnlockPopup';
 
 /* ─── Styles ────────────────────────────────────────────────────────────── */
 const styles = `
@@ -1028,6 +1030,13 @@ const Analyzer = () => {
               })}
             </div>
 
+            {result.reward_summary && (
+              <div style={{ marginTop: '1.5rem' }}>
+                <p className="az-ai-label" style={{ marginBottom: '0.6rem' }}>⬡ Eco Reward</p>
+                <RewardSummaryWidget rewardSummary={result.reward_summary} />
+              </div>
+            )}
+
             <button onClick={() => navigate('/dashboard')} className="az-dash-btn">
               <div className="corner-tl" />
               <div className="link-text">
@@ -1041,6 +1050,7 @@ const Analyzer = () => {
           </div>
         )}
       </div>
+      <RewardUnlockPopup newlyCoupons={result?.reward_summary?.newly_claimed_coupons || []} />
     </>
   );
 };
