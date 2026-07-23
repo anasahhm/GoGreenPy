@@ -1,6 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import gsap from 'gsap';
+import ScrollTrigger from 'gsap/ScrollTrigger';
 import {
   BarChart2,
   TrendingUp,
@@ -9,8 +11,13 @@ import {
   BrainCircuit,
   CloudSun,
   Target,
+  CheckCircle,
+  MessageCircle,
 } from 'lucide-react';
 import WeatherWidget from '../components/WeatherWidget';
+import Globe3D from '../components/Globe3D';
+
+gsap.registerPlugin(ScrollTrigger);
 
 /* ─── Styles ──────────────────────────────────────────────────────────────── */
 const styles = `
@@ -34,21 +41,25 @@ const styles = `
     from { opacity: 0; }
     to   { opacity: 1; }
   }
-  @keyframes home-line-grow {
-    from { transform: scaleX(0); }
-    to   { transform: scaleX(1); }
-  }
-  @keyframes home-gradient-shift {
-    0%   { background-position: 0%; }
-    100% { background-position: 300%; }
-  }
   @keyframes home-scroll-bounce {
     0%, 100% { transform: translateY(0); }
     50%       { transform: translateY(5px); }
   }
   @keyframes home-card-in {
-    from { opacity: 0; transform: translateY(32px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from { opacity: 0; transform: translateY(32px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes home-float-in {
+    from { opacity: 0; transform: translateY(20px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes wa-pulse {
+    0%   { opacity: 1; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.22); }
+  }
+  @keyframes dot-blink {
+    0%, 100% { opacity: 1;   transform: scale(1);    box-shadow: 0 0 6px rgba(74, 222, 128, 0.8); }
+    50%       { opacity: 0.3; transform: scale(0.65); box-shadow: 0 0 2px rgba(74, 222, 128, 0.3); }
   }
 
   .home-root * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -70,117 +81,128 @@ const styles = `
     background: var(--home-dark);
     color: #fff;
   }
+
   .home-hero-video {
     position: absolute;
-    inset: 0; width: 100%; height: 100%;
+    inset: 0;
+    width: 100%;
+    height: 100%;
     object-fit: cover;
     z-index: 0;
   }
+
   .home-hero::before {
     content: '';
     position: absolute;
     inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
-    opacity: 0.045;
-    pointer-events: none;
+    background: rgba(0, 0, 0, 0.55);
     z-index: 1;
+    pointer-events: none;
   }
+
   .home-hero::after {
     content: '';
     position: absolute;
     inset: 0;
-    background: radial-gradient(ellipse 80% 60% at 50% 100%, rgba(22,163,74,0.18) 0%, transparent 70%);
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+    opacity: 0.02;
     pointer-events: none;
-    z-index: 1;
+    z-index: 2;
   }
+
   .home-hero-grid {
     position: absolute;
     inset: 0;
-    z-index: 1;
+    z-index: 2;
     pointer-events: none;
     background-image:
-      linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
-    background-size: 80px 80px;
+      linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+    background-size: 100px 100px;
     animation: home-fade-in 1.2s 0.3s ease both;
   }
-  .home-hero-header {
+
+  .home-hero-container {
     position: absolute;
+    margin-top: 0;
     inset: 0;
-    z-index: 2;
+    z-index: 3;
     display: flex;
-    flex-direction: row;
+    align-items: stretch;
     padding: 2rem;
-    padding-top: calc(var(--home-nav-h) + 1.75rem);
+    padding-top: calc(var(--home-nav-h) + 1rem);
+    padding-bottom: 2rem;
     gap: 2rem;
   }
-  .home-hero-col {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    min-height: 0;
-  }
-  .home-hero-col--right {
-    flex: 0 0 auto;
-    width: 260px;
+
+  /* Left side: Text content (35%) */
+  .home-hero-left {
+    flex: 0 0 35%;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
-    align-items: flex-end;
-    padding-top: 0.5rem;
-    opacity: 0;
-    animation: home-fade-up 0.6s cubic-bezier(0.22,1,0.36,1) 0.9s forwards;
+    padding-top: 3rem;
+    gap: 1.5rem;
+    max-width: 450px;
+    z-index: 5;
   }
+
   .home-hero-h1 {
     font-family: "Syne", sans-serif;
-    font-size: clamp(2.6rem, 5.5vw, 6rem);
-    font-weight: 750;
-    line-height: 0.92;
+    font-size: clamp(2.2rem, 4.5vw, 4.2rem);
+    font-weight: 800;
+    line-height: 1.05;
     letter-spacing: -0.03em;
     color: #fff;
     text-shadow: 0 2px 40px rgba(0,0,0,0.5);
     opacity: 0;
-    animation: home-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.15s forwards;
+    animation: home-fade-up 0.7s cubic-bezier(0.22,1,0.36,1) 0.1s forwards;
   }
+
   .home-descriptor {
     display: flex;
     flex-direction: column;
     gap: 0.75rem;
     opacity: 0;
-    animation: home-fade-up 0.6s cubic-bezier(0.22,1,0.36,1) 0.45s forwards;
+    animation: home-fade-up 0.6s cubic-bezier(0.22,1,0.36,1) 0.25s forwards;
   }
+
   .home-descriptor-sub {
     font-family: "Syne", sans-serif;
-    font-size: 1.15rem;
+    font-size: 1.05rem;
     font-weight: 700;
     color: #fff;
     line-height: 1.3;
     letter-spacing: -0.01em;
   }
+
   .home-descriptor-body {
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     font-weight: 400;
-    color: rgba(255,255,255,0.65);
+    color: rgba(255,255,255,0.68);
     line-height: 1.75;
-    max-width: 22rem;
+    max-width: 320px;
   }
+
   .home-cta-row {
     display: flex;
     gap: 0.6rem;
     flex-wrap: wrap;
-    margin-top: 0.5rem;
+    margin-top: 0rem;
     opacity: 0;
-    animation: home-fade-up 0.55s cubic-bezier(0.22,1,0.36,1) 0.58s forwards;
+    animation: home-fade-up 0.55s cubic-bezier(0.22,1,0.36,1) 0.38s forwards;
+    position: relative;
+    z-index: 15;
   }
+
   .home-cta {
     position: relative;
     display: inline-flex;
     align-items: center;
     font-family: "Geist Mono", monospace;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     font-weight: 700;
-    letter-spacing: 0.13em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     text-decoration: none;
     padding: 0.55rem 1.1rem;
@@ -193,264 +215,988 @@ const styles = `
     overflow: hidden;
     backdrop-filter: blur(12px);
   }
-  .home-cta:hover { border-color: rgba(255,255,255,0.35); background: rgba(255,255,255,0.1); color: #fff; }
-  .home-cta.primary { border-color: rgba(34,197,94,0.45); background: rgba(22,163,74,0.15); color: #86efac; }
-  .home-cta.primary:hover { border-color: rgba(34,197,94,0.8); background: rgba(22,163,74,0.28); color: #bbf7d0; }
-  .home-cta .corner-tl,
-  .home-cta .corner-br { position: absolute; width: 5px; height: 5px; opacity: 0; transition: opacity 0.18s ease; pointer-events: none; }
-  .home-cta .corner-tl { top: -1px; left: -1px; border-top: 1px solid rgba(255,255,255,0.55); border-left: 1px solid rgba(255,255,255,0.55); }
-  .home-cta .corner-br { bottom: -1px; right: -1px; border-bottom: 1px solid rgba(255,255,255,0.55); border-right: 1px solid rgba(255,255,255,0.55); }
-  .home-cta:hover .corner-tl,
-  .home-cta:hover .corner-br { opacity: 1; }
-  .home-cta .link-text { display: block; overflow: hidden; height: 1em; }
-  .home-cta .link-track { display: flex; flex-direction: column; transition: transform 0.4s cubic-bezier(0.76,0,0.24,1); }
-  .home-cta:hover .link-track { transform: translateY(-50%); }
-  .home-cta .link-track span { display: block; height: 1em; line-height: 1em; }
-  .home-cta .link-track span:first-child { color: inherit; }
-  .home-cta .link-track span:last-child  { color: #fff; }
-  .home-cta.primary .link-track span:last-child { color: #bbf7d0; }
 
-  .home-scroll-hint {
-    position: absolute;
-    right: 2rem; top: 10rem;
+  .home-cta:hover {
+    border-color: rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+  }
+
+  .home-cta.primary {
+    border-color: rgba(34,197,94,0.45);
+    background: rgba(22,163,74,0.15);
+    color: #86efac;
+  }
+
+  .home-cta.primary:hover {
+    border-color: rgba(34,197,94,0.8);
+    background: rgba(22,163,74,0.28);
+    color: #bbf7d0;
+  }
+
+  /* Right side: Globe area (75%) */
+  .home-hero-right {
+    flex: 0 0 75%;
+    position: relative;
+    height: 100%;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
-    gap: 0.4rem;
-    opacity: 0;
-    animation: home-fade-up 0.5s cubic-bezier(0.22,1,0.36,1) 0.85s forwards;
-    z-index: 3;
+    align-items: center;
+    justify-content: center;
+    z-index: 4;
   }
-  .home-scroll-row { display: flex; align-items: center; gap: 0.85rem; }
-  .home-scroll-line { width: 3rem; height: 1px; background: rgba(36, 34, 34, 0.35); display: block; }
-  .home-scroll-label { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: rgba(66, 58, 58, 0.73); font-weight: 500; }
-  .home-scroll-cta   { font-size: 0.6rem; letter-spacing: 0.16em; text-transform: uppercase; color: var(--home-green-light); font-weight: 600; animation: home-scroll-bounce 2s ease-in-out infinite; margin-left: 3.85rem; }
 
-  .home-stats {
-    position: absolute;
-    right: 2rem; bottom: 2rem;
-    display: flex;
-    flex-direction: row;
-    gap: 2.5rem;
-    z-index: 3;
-    opacity: 0;
-    animation: home-fade-up 0.55s cubic-bezier(0.22,1,0.36,1) 0.75s forwards;
-  }
-  .home-stat { display: flex; flex-direction: column; align-items: flex-start; gap: 0.2rem; white-space: nowrap; }
-  .home-stat-num { font-family: "Syne", sans-serif; font-size: 1.4rem; font-weight: 800; letter-spacing: -0.04em; color: #fff; line-height: 1; }
-  .home-stat-num .home-stat-accent { color: var(--home-green-light); }
-  .home-stat-label { font-size: 0.55rem; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.4); font-weight: 500; }
-
-  /* ══ FEATURES ══ */
-  .home-features { background: var(--home-light); padding: 6rem 2rem 5rem; position: relative; }
-  .home-features::before { content: ''; position: absolute; top: 0; left: 2rem; right: 2rem; height: 1px; background: rgba(0,0,0,0.1); }
-  .home-features-header { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 3rem; max-width: 1280px; margin-left: auto; margin-right: auto; }
-  .home-features-title {
-    font-size: clamp(0.6rem, 1vw, 0.72rem);
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: rgba(0,0,0,0.35);
+  /* 3D Globe container */
+  .home-globe-container {
+    position: relative;
+    width: 85%;
+    max-width: 700px;
+    aspect-ratio: 1;
     display: flex;
     align-items: center;
+    justify-content: center;
+    opacity: 0;
+    animation: home-float-in 0.8s cubic-bezier(0.22,1,0.36,1) 0.6s forwards;
+    z-index: 4;
+  }
+
+  /* Weather widget */
+  .home-weather-card {
+    position: fixed;
+    bottom: 2rem;
+    left: 2rem;
+    opacity: 0;
+    animation: home-float-in 0.6s cubic-bezier(0.22,1,0.36,1) 0.5s forwards;
+    z-index: 20;
+  }
+
+  .home-weather-glass {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px) saturate(120%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 20px;
+    padding: 1.25rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2), inset 0 1px 1px rgba(255, 255, 255, 0.25);
+  }
+
+  .home-scroll-hint {
+    position: fixed;
+    right: 2rem;
+    bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     gap: 0.6rem;
+    opacity: 0;
+    animation: home-fade-up 0.5s cubic-bezier(0.22,1,0.36,1) 0.7s forwards;
+    z-index: 6;
   }
-  .home-features-title::before { content: ''; display: inline-block; width: 20px; height: 1px; background: var(--home-green); opacity: 0.8; }
-  .home-features-eyebrow {
-    font-family: "Syne", sans-serif;
-    font-size: clamp(1.2rem, 2.5vw, 1.8rem);
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    color: #111;
-    line-height: 1;
+
+  .home-scroll-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: rgba(255,255,255,0.5);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .home-scroll-cta {
+    font-size: 1.2rem;
+    color: rgba(255,255,255,0.6);
+    animation: home-scroll-bounce 2s ease-in-out infinite;
+  }
+
+/* ══ DETAILS ══ */
+  .home-details {
     position: relative;
-    display: inline-block;
+    width: 100%;
+    background: var(--home-dark);
+    color: #fff;
+    padding: 8rem 2rem;
+    overflow: hidden;
   }
-  .home-features-eyebrow::after {
+
+  .home-details::before {
     content: '';
     position: absolute;
-    bottom: -5px; left: 0;
-    width: 100%; height: 2px;
-    background: linear-gradient(90deg, var(--home-green), var(--home-green-light), var(--home-green));
-    background-size: 300%;
-    animation: home-gradient-shift 2.4s linear infinite,
-    home-line-grow 0.6s 0.5s cubic-bezier(0.22,1,0.36,1) both;
-    transform-origin: left;
+    inset: 0;
+    background: radial-gradient(circle at 20% 50%, rgba(22,163,74,0.04) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
   }
-  .home-cards {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 1px;
-    background: rgba(0,0,0,0.1);
-    border: 1px solid rgba(0,0,0,0.1);
-    border-radius: 4px;
-    overflow: hidden;
-    max-width: 1280px;
+
+  .home-details-container {
+    max-width: 1200px;
     margin: 0 auto;
+    position: relative;
+    z-index: 1;
   }
-  .home-card {
-    background: var(--home-light);
-    padding: 2.5rem 2rem;
+
+  .home-details-intro {
+    text-align: center;
+    margin-bottom: 6rem;
+  }
+
+  .home-details-intro-title {
+    font-family: "Syne", sans-serif;
+    font-size: clamp(2rem, 3.5vw, 3.2rem);
+    font-weight: 800;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #fff 0%, #86efac 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .home-details-intro-text {
+    font-size: 1rem;
+    color: rgba(255,255,255,0.7);
+    max-width: 700px;
+    margin: 0 auto;
+    line-height: 1.8;
+  }
+
+  .home-details-grid {
+    display: flex;
+    gap: 2.5rem;
+    margin-bottom: 4rem;
+    overflow-x: auto;
+    padding-bottom: 1rem;
+    scroll-behavior: smooth;
+  }
+  
+  .home-details-grid::-webkit-scrollbar {
+    height: 6px;
+  }
+  
+  .home-details-grid::-webkit-scrollbar-track {
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+  }
+  
+  .home-details-grid::-webkit-scrollbar-thumb {
+    background: rgba(34,197,94,0.3);
+    border-radius: 10px;
+  }
+  
+  .home-details-grid::-webkit-scrollbar-thumb:hover {
+    background: rgba(34,197,94,0.5);
+  }
+
+  .home-detail-item {
     display: flex;
     flex-direction: column;
-    gap: 1.1rem;
+    gap: 1rem;
+    padding: 2rem;
+    border: 1px solid rgba(34,197,94,0.15);
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(22,163,74,0.03) 0%, transparent 100%);
+    backdrop-filter: blur(8px);
+    transition: all 0.4s cubic-bezier(0.22,1,0.36,1);
     position: relative;
     overflow: hidden;
-    transition: background 0.22s ease;
     opacity: 0;
-    animation: home-card-in 0.55s cubic-bezier(0.22,1,0.36,1) forwards;
+    width: 340px;
+    height: 340px;
+    flex-shrink: 0;
+    aspect-ratio: 1 / 1;
   }
-  .home-card:hover { background: #fff; }
-  .home-card::before {
+
+  .home-detail-item::before {
     content: '';
     position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 2px;
-    background: linear-gradient(180deg, var(--home-green), var(--home-green-light));
-    transform: scaleY(0);
-    transform-origin: top;
-    transition: transform 0.28s cubic-bezier(0.22,1,0.36,1);
-  }
-  .home-card:hover::before { transform: scaleY(1); }
-
-  .home-card-icon {
-    width: 2.5rem; height: 2.5rem;
-    display: flex; align-items: center; justify-content: center;
-    border: 1px solid rgba(0,0,0,0.1);
-    border-radius: 3px;
-    background: rgba(0,0,0,0.025);
-    transition: border-color 0.18s ease, background 0.18s ease;
-    color: rgba(0,0,0,0.55);
-  }
-  .home-card:hover .home-card-icon { border-color: rgba(22,163,74,0.3); background: rgba(22,163,74,0.06); color: var(--home-green); }
-
-  .home-card-title { font-family: "Syne", sans-serif; font-size: 0.9rem; font-weight: 700; letter-spacing: -0.01em; color: #111; line-height: 1.2; }
-  .home-card-body  { font-size: 0.78rem; font-weight: 400; color: rgba(0,0,0,0.5); line-height: 1.7; flex: 1; }
-  .home-card-tag   { font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--home-green); display: flex; align-items: center; gap: 0.4rem; }
-  .home-card-tag::before { content: ''; display: inline-block; width: 10px; height: 1px; background: var(--home-green); }
-
-  /* ══ DETAILS ══ */
-  .home-details { background: var(--home-light); padding: 5rem 2rem 4rem; position: relative; }
-  .home-details-container { max-width: 1280px; margin: 0 auto; }
-  .home-details-intro { margin-bottom: 3.5rem; max-width: 700px; }
-  .home-details-intro-title { font-family: "Syne", sans-serif; font-size: clamp(1.6rem, 2.8vw, 2.1rem); font-weight: 800; color: #111; margin-bottom: 1.2rem; letter-spacing: -0.02em; }
-  .home-details-intro-text  { font-size: 0.88rem; color: rgba(0,0,0,0.6); line-height: 1.85; }
-  .home-details-grid {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1px;
-    background: rgba(0,0,0,0.1);
-    border: 1px solid rgba(0,0,0,0.1);
-    border-radius: 4px;
-    overflow: hidden;
-    margin-top: 2rem;
-  }
-  .home-detail-item {
-    background: var(--home-light);
-    padding: 2.2rem 1.8rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.9rem;
-    position: relative;
-    overflow: hidden;
-    transition: background 0.22s ease;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(34,197,94,0.05) 0%, transparent 100%);
     opacity: 0;
-    animation: home-card-in 0.55s cubic-bezier(0.22,1,0.36,1) forwards;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
   }
-  .home-detail-item:hover { background: #fff; }
-  .home-detail-item::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 2px; background: linear-gradient(180deg, var(--home-green), var(--home-green-light)); transform: scaleY(0); transform-origin: top; transition: transform 0.28s cubic-bezier(0.22,1,0.36,1); }
-  .home-detail-item:hover::before { transform: scaleY(1); }
-  .home-detail-item:nth-child(1) { animation-delay: 0.2s; }
-  .home-detail-item:nth-child(2) { animation-delay: 0.3s; }
-  .home-detail-item:nth-child(3) { animation-delay: 0.4s; }
-  .home-detail-item:nth-child(4) { animation-delay: 0.5s; }
+
+  .home-detail-item:hover {
+    border-color: rgba(34,197,94,0.3);
+    background: linear-gradient(135deg, rgba(22,163,74,0.06) 0%, rgba(22,163,74,0.02) 100%);
+    transform: translateY(-4px);
+    box-shadow: 0 8px 20px rgba(22,163,74,0.1);
+  }
+
+  .home-detail-item:hover::before {
+    opacity: 1;
+  }
 
   .home-detail-icon {
-    width: 2.2rem; height: 2.2rem;
-    display: flex; align-items: center; justify-content: center;
-    border: 1px solid rgba(0,0,0,0.09);
-    border-radius: 3px;
-    background: rgba(0,0,0,0.02);
-    color: rgba(0,0,0,0.45);
-    transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(34,197,94,0.15) 0%, rgba(34,197,94,0.05) 100%);
+    border-radius: 10px;
+    color: #86efac;
+    border: 1px solid rgba(34,197,94,0.2);
+    transition: all 0.4s ease;
   }
-  .home-detail-item:hover .home-detail-icon { border-color: rgba(22,163,74,0.28); background: rgba(22,163,74,0.05); color: var(--home-green); }
 
-  .home-detail-title { font-family: "Syne", sans-serif; font-size: 0.95rem; font-weight: 700; color: #111; letter-spacing: -0.01em; line-height: 1.2; }
-  .home-detail-text  { font-size: 0.78rem; color: rgba(0,0,0,0.5); line-height: 1.65; }
+  .home-detail-item:hover .home-detail-icon {
+    transform: scale(1.12) rotate(8deg);
+    background: linear-gradient(135deg, rgba(34,197,94,0.25) 0%, rgba(34,197,94,0.1) 100%);
+  }
 
-  .home-details-cta { margin-top: 2.5rem; padding-top: 2.5rem; border-top: 1px solid rgba(0,0,0,0.1); text-align: center; }
-  .home-details-cta-text { font-size: 0.88rem; color: rgba(0,0,0,0.6); margin-bottom: 1.2rem; }
+  .home-detail-title {
+    font-family: "Syne", sans-serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    position: relative;
+    z-index: 2;
+  }
+
+  .home-detail-title::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: var(--home-green);
+    transition: width 0.4s ease;
+  }
+
+  .home-detail-item:hover .home-detail-title::after {
+    width: 25px;
+  }
+
+  .home-detail-text {
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.65);
+    line-height: 1.6;
+    position: relative;
+    z-index: 2;
+  }
+
+  .home-details-cta {
+    text-align: center;
+    padding-top: 2rem;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+
+  .home-details-cta-text {
+    font-size: 0.95rem;
+    color: rgba(255,255,255,0.75);
+    margin-bottom: 1.5rem;
+    line-height: 1.6;
+  }
+
   .home-details-cta-button {
     position: relative;
     display: inline-flex;
     align-items: center;
     font-family: "Geist Mono", monospace;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     font-weight: 700;
-    letter-spacing: 0.13em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     text-decoration: none;
     padding: 0.55rem 1.1rem;
-    border: 1px solid var(--home-border);
+    border: 1px solid rgba(34,197,94,0.45);
     border-radius: 3px;
-    background: var(--home-box-bg);
-    color: rgba(0,0,0,0.7);
+    background: rgba(22,163,74,0.15);
     cursor: pointer;
+    color: #86efac;
     transition: all 0.18s ease;
     overflow: hidden;
   }
-  .home-details-cta-button:hover { border-color: var(--home-green); background: rgba(22,163,74,0.1); color: var(--home-green); }
-  .home-details-cta-button .corner-tl,
-  .home-details-cta-button .corner-br { position: absolute; width: 5px; height: 5px; opacity: 0; transition: opacity 0.18s ease; pointer-events: none; }
-  .home-details-cta-button .corner-tl { top: -1px; left: -1px; border-top: 1px solid rgba(0,0,0,0.2); border-left: 1px solid rgba(0,0,0,0.2); }
-  .home-details-cta-button .corner-br { bottom: -1px; right: -1px; border-bottom: 1px solid rgba(0,0,0,0.2); border-right: 1px solid rgba(0,0,0,0.2); }
-  .home-details-cta-button:hover .corner-tl,
-  .home-details-cta-button:hover .corner-br { opacity: 1; }
-  .home-details-cta-button .link-text { display: block; overflow: hidden; height: 1em; }
-  .home-details-cta-button .link-track { display: flex; flex-direction: column; transition: transform 0.4s cubic-bezier(0.76,0,0.24,1); }
-  .home-details-cta-button:hover .link-track { transform: translateY(-50%); }
-  .home-details-cta-button .link-track span { display: block; height: 1em; line-height: 1em; }
-  .home-details-cta-button .link-track span:first-child { color: inherit; }
-  .home-details-cta-button .link-track span:last-child  { color: var(--home-green); }
 
-  /* ══ RESPONSIVE ══ */
-  @media (max-width: 1100px) { .home-hero-col--right { width: 220px; } }
-  @media (max-width: 900px) {
-    .home-hero-header { flex-direction: column; padding: 1.25rem; padding-top: calc(var(--home-nav-h) + 1rem); }
-    .home-hero-col { flex: unset; width: 100%; }
-    .home-hero-col--right { display: none; }
-    .home-hero-h1 { font-size: clamp(2.2rem, 8vw, 3.5rem); }
-    .home-stats { right: 1rem; bottom: 1rem; gap: 1.2rem; }
-    .home-cards { grid-template-columns: 1fr; }
-    .home-features { padding: 4rem 1.25rem 3rem; }
-    .home-features-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; margin-bottom: 2rem; }
-    .home-details { padding: 4rem 1.25rem; }
-    .home-details-grid { grid-template-columns: 1fr; }
+  .home-details-cta-button:hover {
+    border-color: rgba(34,197,94,0.8);
+    background: rgba(22,163,74,0.28);
+    color: #bbf7d0;
   }
+
+  /* ══ STEPS (PINNED STORYTELLING) ══ */
+  .home-steps {
+    position: relative;
+    width: 100%;
+    background: var(--home-dark);
+    color: #fff;
+    padding: 0;
+    min-height: 250vh;
+  }
+
+  .home-steps-container {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 0;
+    padding: 0 2rem;
+    padding-left: 5rem;
+  }
+
+  .home-steps-progress-column {
+    position: fixed;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 60px;
+    height: 600px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    z-index: 10;
+  }
+
+  .home-steps-progress-track {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 3px;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.15);
+    transform: translateX(-50%);
+    border-radius: 2px;
+  }
+
+  .home-steps-progress-fill {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 3px;
+    height: 0%;
+    background: linear-gradient(180deg, var(--home-green) 0%, var(--home-green-light) 100%);
+    transform: translateX(-50%);
+    border-radius: 2px;
+  }
+
+  .home-steps-dots-container {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    transform: translateX(-50%);
+  }
+
+  .home-steps-dot {
+    position: absolute;
+    left: 50%;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(255, 255, 255, 0.2);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    transition: all 0.4s ease;
+  }
+
+  .home-steps-dot.active {
+    width: 24px;
+    height: 24px;
+    background: var(--home-green);
+    border-color: var(--home-green-light);
+    box-shadow: 0 0 20px rgba(34, 197, 94, 0.6);
+  }
+
+  .home-steps-cards-area {
+    position: relative;
+    flex: 1;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    max-width: 700px;
+    width: 100%;
+  }
+
+  .home-steps-card-stack {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .home-steps-card {
+    position: absolute;
+    width: 100%;
+    max-width: 600px;
+    opacity: 0;
+    filter: blur(0px);
+    pointer-events: none;
+    transition: all 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+    transform: scale(0.9) translateY(40px);
+  }
+
+  .home-steps-card.active {
+    opacity: 1;
+    filter: blur(0px);
+    pointer-events: auto;
+    transform: scale(1) translateY(0);
+  }
+
+  .home-steps-card-number {
+    font-family: "Syne", sans-serif;
+    font-size: 5rem;
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.08);
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    transition: color 0.4s ease;
+  }
+
+  .home-steps-card.active .home-steps-card-number {
+    color: var(--home-green);
+  }
+
+  .home-steps-card-label {
+    font-family: "Syne", sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.5);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 1rem;
+    transition: color 0.4s ease;
+  }
+
+  .home-steps-card.active .home-steps-card-label {
+    color: #fff;
+  }
+
+  .home-steps-card-title {
+    font-family: "Syne", sans-serif;
+    font-size: clamp(1.8rem, 3vw, 2.5rem);
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 1.5rem;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+
+  .home-steps-card-text {
+    font-size: 1rem;
+    color: rgba(255, 255, 255, 0.75);
+    line-height: 1.8;
+    margin-bottom: 2.5rem;
+  }
+
+  .home-steps-card-features {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+
+  .home-steps-card-feature {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.7);
+    align-items: flex-start;
+  }
+
+  .home-steps-card-feature svg {
+    color: var(--home-green);
+    flex-shrink: 0;
+    margin-top: 4px;
+  }
+
+  /* ══ FOOTER ══ */
+  footer {
+    position: relative;
+    width: 100%;
+    height: 100svh;
+    background-color: var(--home-dark);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 4rem 2.5rem;
+    color: #fff;
+  }
+
+  .footer-container {
+    position: relative;
+    width: 100%;
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+  }
+
+  .footer-content {
+    position: relative;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex: 1;
+    z-index: 1;
+  }
+
+  /* Top row */
+  .footer-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 4rem;
+  }
+
+  .footer-row:first-child .footer-col:nth-child(1) {
+    flex: 0 0 50%;
+  }
+
+  .footer-row:first-child .footer-col:nth-child(2) {
+    flex: 0 0 40%;
+    display: flex;
+    gap: 2rem;
+  }
+
+  .footer-col h2 {
+    font-family: "Syne", sans-serif;
+    font-size: clamp(2rem, 4vw, 3.5rem);
+    font-weight: 800;
+    line-height: 1.2;
+    color: #fff;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+  }
+
+  .footer-col h3 {
+    font-family: "Syne", sans-serif;
+    font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+    font-weight: 700;
+    color: #fff;
+    margin-bottom: 0.8rem;
+    letter-spacing: -0.01em;
+  }
+
+  .footer-col a {
+    display: block;
+    text-decoration: none;
+    color: rgba(255,255,255,0.55);
+    font-size: 0.95rem;
+    line-height: 1.6;
+    transition: color 0.2s ease;
+    font-family: "Geist Mono", monospace;
+    font-weight: 400;
+  }
+
+  .footer-col a:hover {
+    color: #fff;
+  }
+
+  .footer-sub-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .footer-location-label {
+    font-family: "Geist Mono", monospace;
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.4);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 0.5rem;
+  }
+
+  /* Centre CTA */
+  .footer-cta {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 2rem 0;
+  }
+
+  .footer-cta-button {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.9rem 2.25rem;
+    border: 1px solid rgba(34,197,94,0.45);
+    border-radius: 3px;
+    background: rgba(22,163,74,0.15);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+    color: #86efac;
+    font-family: "Geist Mono", monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 2;
+  }
+
+  .footer-cta-button:hover {
+    border-color: rgba(34,197,94,0.8);
+    background: rgba(22,163,74,0.28);
+    color: #bbf7d0;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 24px rgba(22,163,74,0.3);
+  }
+
+  /* Divider */
+  .footer-divider {
+    width: 100%;
+    height: 1px;
+    background: rgba(255,255,255,0.1);
+    margin: 2rem 0;
+  }
+
+  /* Bottom */
+  .footer-row.footer-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1rem;
+  }
+
+  .footer-row.footer-bottom p {
+    font-family: "Geist Mono", monospace;
+    font-size: 0.8rem;
+    color: rgba(255,255,255,0.4);
+    font-weight: 400;
+  }
+
+  /* Responsive */
+  @media (max-width: 1280px) {
+    .home-hero-container {
+      gap: 2rem;
+      padding: 2rem;
+      padding-bottom: 2rem;
+    }
+
+    .home-globe-container {
+      max-width: 800px;
+    }
+
+    .home-hero-left {
+      flex: 0 0 38%;
+      gap: 1.2rem;
+    }
+
+    .home-hero-right {
+      flex: 0 0 62%;
+    }
+
+    .home-steps-content {
+      gap: 4rem;
+    }
+  }
+
+  @media (max-width: 1024px) {
+    .home-hero-container {
+      flex-direction: column;
+      justify-content: flex-start;
+      padding-top: calc(var(--home-nav-h) + 2rem);
+      padding-bottom: 2rem;
+      gap: 2rem;
+      align-items: flex-start;
+    }
+
+    .home-hero-left {
+      flex: 0 0 auto;
+      width: 100%;
+      max-width: 100%;
+      gap: 1.5rem;
+    }
+
+    .home-hero-right {
+      flex: 0 0 auto;
+      width: 100%;
+      max-width: 100%;
+      align-items: center;
+      justify-content: center;
+      height: auto;
+      min-height: 400px;
+    }
+
+    .home-globe-container {
+      max-width: 100%;
+      width: 100%;
+      max-width: 500px;
+    }
+
+    .home-scroll-hint {
+      display: none;
+    }
+
+    .home-weather-card {
+      position: static;
+      margin-top: 2rem;
+      width: fit-content;
+    }
+
+    .home-steps {
+      min-height: 300vh;
+    }
+
+    .home-steps-container {
+      flex-direction: column;
+      gap: 2rem;
+      align-items: center;
+      padding: 2rem;
+      padding-left: 5rem;
+    }
+
+    .home-steps-progress-column {
+      width: 100%;
+      height: 400px;
+      margin-bottom: 2rem;
+      position: relative;
+      left: auto;
+      top: auto;
+      transform: none;
+    }
+
+    .home-steps-cards-area {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .home-steps-card {
+      max-width: 100%;
+    }
+
+    .home-steps-card-title {
+      font-size: 1.5rem;
+    }
+
+    .footer-row {
+      gap: 2rem;
+    }
+
+    .footer-row:first-child .footer-col:nth-child(2) {
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+  }
+
+  @media (max-width: 768px) {
+    .home-hero {
+      min-height: 800px;
+    }
+
+    .home-hero-container {
+      padding: 1.5rem;
+      padding-top: calc(var(--home-nav-h) + 1rem);
+      gap: 1.5rem;
+    }
+
+    .home-hero-h1 {
+      font-size: 2rem;
+    }
+
+    .home-hero-left {
+      gap: 1rem;
+    }
+
+    .home-globe-container {
+      max-width: 350px;
+      width: 100%;
+    }
+
+    .home-cards {
+      grid-template-columns: 1fr;
+    }
+
+    .home-details-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .home-weather-card {
+      position: fixed;
+      bottom: 2rem;
+      left: 2rem;
+      z-index: 20;
+    }
+
+    footer {
+      height: auto;
+      padding: 2rem 1.5rem;
+    }
+
+    .footer-row {
+      flex-direction: column;
+      gap: 2rem;
+    }
+
+    .footer-row:first-child .footer-col:nth-child(1) {
+      flex: 1;
+    }
+
+    .footer-row:first-child .footer-col:nth-child(2) {
+      flex: 1;
+      gap: 1.5rem;
+    }
+
+    .footer-col h2 {
+      font-size: 1.5rem;
+    }
+
+    .home-steps {
+      min-height: 300vh;
+    }
+
+    .home-steps-container {
+      gap: 1.5rem;
+      padding: 1.5rem;
+      padding-left: 4rem;
+    }
+
+    .home-steps-progress-column {
+      height: 350px;
+    }
+
+    .home-steps-cards-area {
+      max-width: 90vw;
+    }
+
+    .home-steps-card-number {
+      font-size: 3rem;
+    }
+
+    .home-steps-card-title {
+      font-size: 1.4rem;
+    }
+
+    .home-steps-card-text {
+      font-size: 0.9rem;
+    }
+  }
+
   @media (max-width: 480px) {
-    .home-cta-row { gap: 0.5rem; }
-    .home-details-intro-title { font-size: clamp(1.3rem, 5vw, 1.6rem); }
-    .home-detail-item { padding: 1.5rem 1.25rem; }
-    .home-stats { display: none; }
+    .home-hero-container {
+      padding: 1rem;
+      padding-top: calc(var(--home-nav-h) + 0.75rem);
+    }
+
+    .home-hero-h1 {
+      font-size: 1.5rem;
+    }
+
+    .home-globe-container {
+      max-width: 280px;
+    }
+
+    .home-descriptor-body {
+      font-size: 0.75rem;
+    }
+
+    .home-cta {
+      font-size: 0.65rem;
+      padding: 0.45rem 0.9rem;
+    }
+
+    footer {
+      padding: 1.5rem 1rem;
+    }
+
+    .footer-col h2 {
+      font-size: 1.2rem;
+    }
+
+    .home-steps {
+      min-height: 350vh;
+    }
+
+    .home-steps-container {
+      gap: 1rem;
+      padding: 1rem;
+      padding-left: 3.5rem;
+    }
+
+    .home-steps-progress-column {
+      width: 50px;
+      height: 300px;
+      left: 0.5rem;
+    }
+
+    .home-steps-card-number {
+      font-size: 2.5rem;
+    }
+
+    .home-steps-card-title {
+      font-size: 1.2rem;
+    }
+
+    .home-steps-card-text {
+      font-size: 0.85rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .home-steps-card-features {
+      gap: 0.8rem;
+    }
+
+    .home-steps-card-feature {
+      font-size: 0.8rem;
+    }
   }
 `;
 
-/* ─── CTALink helper ──────────────────────────────────────────────────────── */
-const CTALink = ({ to, label, variant = '' }) => (
-  <Link to={to} className={`home-cta ${variant}`}>
-    <div className="corner-tl" />
-    <div className="link-text">
-      <div className="link-track">
-        <span>{label}</span>
-        <span>{label}</span>
-      </div>
-    </div>
-    <div className="corner-br" />
-  </Link>
-);
+/* ─── Steps data ──────────────────────────────────────────────────────────── */
+const STEPS = [
+  {
+    number: '01',
+    label: 'Track',
+    title: 'Log Your Daily Activities',
+    text: 'Record your transportation, energy consumption, diet choices, and waste habits. Our intuitive interface makes data entry quick and effortless.',
+    features: [
+      'Transportation logging',
+      'Energy consumption tracking',
+      'Diet & waste records',
+      'Automatic calculations'
+    ]
+  },
+  {
+    number: '02',
+    label: 'Analyze',
+    title: 'Get AI-Powered Insights',
+    text: 'Our advanced algorithms analyze your patterns and provide personalized recommendations tailored to your lifestyle and location.',
+    features: [
+      'Pattern recognition',
+      'Predictive analytics',
+      'Personalized suggestions',
+      'Weather-aware tips'
+    ]
+  },
+  {
+    number: '03',
+    label: 'Act',
+    title: 'Take Sustainable Action',
+    text: 'Implement our recommendations and see your carbon footprint decrease. Every small action contributes to global environmental goals.',
+    features: [
+      'Actionable step-by-step guides',
+      'Progress tracking',
+      'Achievement badges',
+      'Community impact metrics'
+    ]
+  },
+  {
+    number: '04',
+    label: 'Impact',
+    title: 'Visualize Your Difference',
+    text: 'Watch your positive impact grow with interactive charts and global comparisons. Join thousands making a real difference today.',
+    features: [
+      'Interactive dashboards',
+      'Global leaderboards',
+      'Monthly reports',
+      'Carbon savings summary'
+    ]
+  }
+];
 
-/* ─── Feature cards data ──────────────────────────────────────────────────── */
+/* ─── Feature cards data ──────────────────────────────────────────────── */
 const FEATURES = [
   {
     icon: <BarChart2 size={20} strokeWidth={1.8} />,
@@ -475,7 +1221,7 @@ const FEATURES = [
   },
 ];
 
-/* ─── Details section data ──────────────────────────────────────────────────── */
+/* ─── Details section data ──────────────────────────────────────────────– */
 const DETAILS = [
   {
     icon: <Globe size={18} strokeWidth={1.7} />,
@@ -503,7 +1249,321 @@ const DETAILS = [
   },
 ];
 
-/* ─── Component ───────────────────────────────────────────────────────────── */
+/* ─── Details Animated Component ─────────────────────────────────────────── */
+const DetailsSection = ({ details }) => {
+  const sectionRef = useRef(null);
+  const itemsRef = useRef([]);
+  const { isAuthenticated } = useSelector((state) => state.auth);
+
+  useEffect(() => {
+    if (!sectionRef.current) return;
+
+    const items = itemsRef.current.filter(Boolean);
+    if (!items.length) return;
+
+    // Kill any existing animations
+    items.forEach(item => {
+      gsap.killTweensOf(item);
+    });
+
+    items.forEach((item, idx) => {
+      // Set initial state
+      gsap.set(item, {
+        opacity: 0,
+        y: 60,
+        rotateX: -15,
+        scale: 0.9,
+      });
+
+      // Scroll-triggered entrance animation
+      gsap.to(item, {
+        opacity: 1,
+        y: 0,
+        rotateX: 0,
+        scale: 1,
+        duration: 0.8,
+        ease: 'back.out(1.2)',
+        scrollTrigger: {
+          trigger: item,
+          start: 'top 85%',
+          end: 'top 45%',
+          scrub: 0.5,
+          markers: false,
+        },
+      });
+
+      // Parallax effect on scroll
+      gsap.to(item, {
+        y: -20,
+        scrollTrigger: {
+          trigger: sectionRef.current,
+          start: 'top center',
+          end: 'bottom center',
+          scrub: 1.5,
+          markers: false,
+        },
+      });
+    });
+
+    return () => {
+      items.forEach(item => {
+        gsap.killTweensOf(item);
+      });
+    };
+  }, []);
+
+  return (
+    <section className="home-details" ref={sectionRef}>
+      <div className="home-details-container">
+        <div className="home-details-intro">
+          <h2 className="home-details-intro-title">Why Choose GoGreenPy?</h2>
+          <p className="home-details-intro-text">
+            We're not just another carbon tracking app. GoGreenPy combines cutting-edge AI,
+            intuitive design, and real-world impact to make sustainability accessible for everyone.
+          </p>
+        </div>
+
+        <div className="home-details-grid">
+          {details.map((detail, idx) => (
+            <div 
+              key={detail.title} 
+              className="home-detail-item"
+              ref={(el) => {
+                if (el) itemsRef.current[idx] = el;
+              }}
+            >
+              <div className="home-detail-icon">{detail.icon}</div>
+              <h3 className="home-detail-title">{detail.title}</h3>
+              <p className="home-detail-text">{detail.text}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="home-details-cta">
+          <p className="home-details-cta-text">
+            Ready to make a difference? Start your sustainability journey today.
+          </p>
+          {!isAuthenticated && (
+            <Link to="/signup" className="home-details-cta-button">
+              Get Started
+            </Link>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+};
+const StorytellingSteps = () => {
+  const sectionRef = useRef(null);
+  const containerRef = useRef(null);
+  const cardsRef = useRef([]);
+  const dotsRef = useRef([]);
+  const progressFillRef = useRef(null);
+  const timelineRef = useRef(null);
+
+  useEffect(() => {
+    if (!sectionRef.current || !containerRef.current) return;
+
+    const section = sectionRef.current;
+    const container = containerRef.current;
+    const cards = cardsRef.current.filter(Boolean);
+    const dots = dotsRef.current.filter(Boolean);
+
+    if (!cards.length || !dots.length) return;
+
+    // Kill existing animations
+    if (timelineRef.current) {
+      timelineRef.current.kill();
+    }
+    ScrollTrigger.getAll().forEach((trigger) => {
+      if (trigger.vars.trigger === section) {
+        trigger.kill();
+      }
+    });
+
+    const totalSteps = STEPS.length;
+    const STEP_DURATION = 1;
+
+    // ═══ INITIALIZATION - Start with Step 1 active ═══
+    cards.forEach((card, idx) => {
+      gsap.set(card, {
+        opacity: idx === 0 ? 1 : 0,
+        filter: 'blur(0px)',
+        transform: idx === 0 ? 'scale(1) translateY(0)' : 'scale(0.9) translateY(40px)',
+        pointerEvents: idx === 0 ? 'auto' : 'none',
+      });
+    });
+
+    dots.forEach((dot, idx) => {
+      gsap.set(dot, {
+        background: idx === 0 ? 'var(--home-green)' : 'rgba(255, 255, 255, 0.2)',
+        borderColor: idx === 0 ? 'var(--home-green-light)' : 'rgba(255, 255, 255, 0.3)',
+        boxShadow: idx === 0 ? '0 0 20px rgba(34, 197, 94, 0.6)' : 'none',
+      });
+    });
+
+    gsap.set(progressFillRef.current, { height: '0%' });
+
+    // ═══ CREATE MASTER TIMELINE ═══
+    timelineRef.current = gsap.timeline();
+    const timelineDuration = totalSteps * STEP_DURATION;
+
+    // ═══ BUILD ANIMATION SEQUENCE ═══
+    for (let step = 0; step < totalSteps; step++) {
+      const timelinePosition = step * STEP_DURATION;
+
+      cards.forEach((card, cardIdx) => {
+        const isActive = cardIdx === step;
+
+        timelineRef.current.to(
+          card,
+          {
+            opacity: isActive ? 1 : 0,
+            filter: 'blur(0px)',
+            transform: isActive ? 'scale(1) translateY(0)' : 'scale(0.9) translateY(40px)',
+            pointerEvents: isActive ? 'auto' : 'none',
+            duration: STEP_DURATION,
+            ease: 'power2.inOut',
+          },
+          timelinePosition
+        );
+
+        const numberEl = card.querySelector('.home-steps-card-number');
+        const labelEl = card.querySelector('.home-steps-card-label');
+
+        if (numberEl) {
+          timelineRef.current.to(
+            numberEl,
+            {
+              color: isActive ? 'var(--home-green)' : 'rgba(255, 255, 255, 0.08)',
+              duration: STEP_DURATION,
+            },
+            timelinePosition
+          );
+        }
+
+        if (labelEl) {
+          timelineRef.current.to(
+            labelEl,
+            {
+              color: isActive ? '#fff' : 'rgba(255, 255, 255, 0.5)',
+              duration: STEP_DURATION,
+            },
+            timelinePosition
+          );
+        }
+      });
+
+      dots.forEach((dot, dotIdx) => {
+        const isActive = dotIdx === step;
+
+        timelineRef.current.to(
+          dot,
+          {
+            background: isActive ? 'var(--home-green)' : 'rgba(255, 255, 255, 0.2)',
+            borderColor: isActive ? 'var(--home-green-light)' : 'rgba(255, 255, 255, 0.3)',
+            boxShadow: isActive ? '0 0 20px rgba(34, 197, 94, 0.6)' : 'none',
+            duration: STEP_DURATION,
+          },
+          timelinePosition
+        );
+      });
+
+      timelineRef.current.to(
+        progressFillRef.current,
+        {
+          height: ((step + 1) / totalSteps) * 100 + '%',
+          duration: STEP_DURATION,
+          ease: 'none',
+        },
+        timelinePosition
+      );
+    }
+
+    // ═══ ATTACH SCROLL TRIGGER (Optimized for speed) ═══
+    gsap.to(timelineRef.current, {
+      duration: timelineDuration,
+      progress: 1,
+      scrollTrigger: {
+        trigger: section,
+        start: 'top top',
+        end: `+=${totalSteps * window.innerHeight * 1.2}`,
+        scrub: 0.8,
+        pin: container,
+        pinSpacing: true,
+        markers: false,
+      },
+      ease: 'none',
+    });
+
+    return () => {
+      if (timelineRef.current) {
+        timelineRef.current.kill();
+      }
+      ScrollTrigger.getAll().forEach((trigger) => {
+        if (trigger.vars.trigger === section) {
+          trigger.kill();
+        }
+      });
+    };
+  }, []);
+
+  return (
+    <section className="home-steps" ref={sectionRef}>
+      <div className="home-steps-container" ref={containerRef}>
+        <div className="home-steps-progress-column">
+          <div className="home-steps-progress-track">
+            <div className="home-steps-progress-fill" ref={progressFillRef} />
+          </div>
+
+          <div className="home-steps-dots-container">
+            {STEPS.map((_, idx) => (
+              <div
+                key={idx}
+                className="home-steps-dot"
+                ref={(el) => {
+                  if (el) dotsRef.current[idx] = el;
+                }}
+                style={{
+                  top: `${(idx / (STEPS.length - 1)) * 100}%`,
+                }}
+              />
+            ))}
+          </div>
+        </div>
+
+        <div className="home-steps-cards-area">
+          <div className="home-steps-card-stack">
+            {STEPS.map((step, idx) => (
+              <div
+                key={idx}
+                className={`home-steps-card ${idx === 0 ? 'active' : ''}`}
+                ref={(el) => {
+                  if (el) cardsRef.current[idx] = el;
+                }}
+              >
+                <div className="home-steps-card-number">{step.number}</div>
+                <div className="home-steps-card-label">{step.label}</div>
+                <h3 className="home-steps-card-title">{step.title}</h3>
+                <p className="home-steps-card-text">{step.text}</p>
+                <div className="home-steps-card-features">
+                  {step.features.map((feature) => (
+                    <div key={feature} className="home-steps-card-feature">
+                      <CheckCircle size={16} />
+                      <span>{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+/* ─── Main Component ───────────────────────────────────────────────────────── */
 const Home = () => {
   const { isAuthenticated } = useSelector((state) => state.auth);
   const videoRef = useRef(null);
@@ -530,12 +1590,11 @@ const Home = () => {
 
           <div className="home-hero-grid" />
 
-          <div className="home-hero-header">
-            {/* ── Left col ── */}
-            <div className="home-hero-col">
+          <div className="home-hero-container">
+            <div className="home-hero-left">
               <h1 className="home-hero-h1">
                 Track your<br />
-                <span className="accent">impact</span>
+                <span style={{ color: '#86efac' }}>impact</span>
               </h1>
 
               <div className="home-descriptor">
@@ -550,108 +1609,103 @@ const Home = () => {
 
                 <div className="home-cta-row">
                   {isAuthenticated ? (
-                    <CTALink to="/dashboard" label="Go to Dashboard" variant="primary" />
+                    <Link to="/dashboard" className="home-cta primary">
+                      Go to Dashboard
+                    </Link>
                   ) : (
                     <>
-                      <CTALink to="/signup" label="Get Started" variant="primary" />
-                      <CTALink to="/login"  label="Login" />
+                      <Link to="/signup" className="home-cta primary">
+                        Get Started
+                      </Link>
+                      <Link to="/login" className="home-cta">
+                        Login
+                      </Link>
                     </>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* ── Right col ── */}
-            <div className="home-hero-col home-hero-col--right">
+            <div className="home-hero-right">
+              <div className="home-globe-container">
+                <Globe3D 
+                  modelPath="/models/earth.glb"
+                  rotationSpeed={0.0015}
+                  autoRotate={true}
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="home-weather-card">
+            <div className="home-weather-glass">
               <WeatherWidget apiKey={import.meta.env.VITE_OWM_API_KEY} />
             </div>
           </div>
 
-          {/* ── Floating stats ── */}
-          <div className="home-stats">
-            <div className="home-stat">
-              <span className="home-stat-num">4<span className="home-stat-accent">+</span></span>
-              <span className="home-stat-label">Impact metrics</span>
-            </div>
-            <div className="home-stat">
-              <span className="home-stat-num">AI<span className="home-stat-accent">-</span>powered</span>
-              <span className="home-stat-label">Analysis engine</span>
-            </div>
-            <div className="home-stat">
-              <span className="home-stat-num">Daily<span className="home-stat-accent">.</span></span>
-              <span className="home-stat-label">Habit tracking</span>
-            </div>
-          </div>
-
-          {/* ── Scroll hint ── */}
           <div className="home-scroll-hint">
-            <div className="home-scroll-row">
-              <span className="home-scroll-line" />
-              <span className="home-scroll-label">Scroll to explore</span>
-            </div>
+            <span className="home-scroll-label">Scroll to explore</span>
             <span className="home-scroll-cta">↓</span>
           </div>
         </section>
 
-        {/* ══════════ FEATURES ══════════ */}
-        <section className="home-features">
-          <div className="home-features-header">
-            <span className="home-features-title">How it works</span>
-            <span className="home-features-eyebrow">Three steps to clarity</span>
-          </div>
 
-          <div className="home-cards">
-            {FEATURES.map((f) => (
-              <div key={f.title} className="home-card" style={{ animationDelay: f.delay }}>
-                <div className="home-card-icon">{f.icon}</div>
-                <h3 className="home-card-title">{f.title}</h3>
-                <p className="home-card-body">{f.body}</p>
-                <span className="home-card-tag">{f.tag}</span>
-              </div>
-            ))}
-          </div>
-        </section>
 
-        {/* ══════════ DETAILS ══════════ */}
-        <section className="home-details">
-          <div className="home-details-container">
-            <div className="home-details-intro">
-              <h2 className="home-details-intro-title">Why Choose GoGreenPy?</h2>
-              <p className="home-details-intro-text">
-                We're not just another carbon tracking app. GoGreenPy combines cutting-edge AI,
-                intuitive design, and real-world impact to make sustainability accessible for everyone.
-              </p>
-            </div>
+        {/* ══════════ DETAILS (PREMIUM ANIMATIONS) ══════════ */}
+        <DetailsSection details={DETAILS} />
 
-            <div className="home-details-grid">
-              {DETAILS.map((detail) => (
-                <div key={detail.title} className="home-detail-item" style={{ animationDelay: detail.delay }}>
-                  <div className="home-detail-icon">{detail.icon}</div>
-                  <h3 className="home-detail-title">{detail.title}</h3>
-                  <p className="home-detail-text">{detail.text}</p>
+        {/* ══════════ STEPS (SCROLL-DRIVEN STORYTELLING) ══════════ */}
+        <StorytellingSteps />
+
+        {/* ══════════ FOOTER ══════════ */}
+        <footer>
+          <div className="footer-container">
+            <div className="footer-content">
+              <div className="footer-row">
+                <div className="footer-col">
+                  <h2>Start tracking<br />your carbon footprint</h2>
+                  <p style={{ 
+                    fontSize: '0.9rem', 
+                    color: 'rgba(255,255,255,0.6)',
+                    lineHeight: '1.6',
+                    marginTop: '1rem',
+                    maxWidth: '400px'
+                  }}>
+                    A minimal side project to help you understand and reduce your environmental impact. Built with passion for a sustainable future.
+                  </p>
                 </div>
-              ))}
-            </div>
-
-            <div className="home-details-cta">
-              <p className="home-details-cta-text">
-                Ready to make a difference? Start your sustainability journey today.
-              </p>
-              {!isAuthenticated && (
-                <Link to="/signup" className="home-details-cta-button">
-                  <div className="corner-tl" />
-                  <div className="link-text">
-                    <div className="link-track">
-                      <span>Get Started</span>
-                      <span>Get Started</span>
-                    </div>
+                
+                <div className="footer-col">
+                  <div className="footer-sub-col">
+                    <h3>Get in Touch</h3>
+                    <a href="mailto:anas@gogreenpy.com">anas@gogreenpy.com</a>
                   </div>
-                  <div className="corner-br" />
+                  <div className="footer-sub-col" style={{ marginTop: '-0.1rem' }}>
+                    <h3>Resources</h3>
+                    <a href="#github">GitHub</a>
+                    <a href="#privacy">Privacy Policy</a>
+                  </div>
+                </div>
+              </div>
+
+              <div className="footer-cta">
+                <Link 
+                  to="/signup" 
+                  className="footer-cta-button"
+                >
+                  Get Started
                 </Link>
-              )}
+              </div>
+
+              <div className="footer-divider" />
+
+              <div className="footer-row footer-bottom">
+                <p>© 2024 GoGreenPy</p>
+                <p>Crafted by <span style={{ color: '#86efac'}}>Anas Ahmed</span></p>
+              </div>
             </div>
           </div>
-        </section>
+        </footer>
 
       </div>
     </>

@@ -11,11 +11,15 @@ import Rewards from './pages/Rewards';
 import AdminPanel from './pages/AdminPanel';
 import NotFound from './pages/NotFound';
 import ProtectedRoute from './components/ProtectedRoute';
-import AIChatbot from './components/AIChatbot';  
+import AIChatbot from './components/AIChatbot';
+import useLenisScroll from './hooks/useLenisScroll'; // Import Lenis hook
 
 function App() {
+  // Initialize Lenis smooth scroll
+  useLenisScroll();
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen">
       <Navbar />
       <Routes>
         <Route path="/" element={<Home />} />

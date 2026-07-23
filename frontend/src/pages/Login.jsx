@@ -241,10 +241,21 @@ const styles = `
     background: rgba(22, 163, 74, 0.15);
     cursor: pointer;
     color: #86efac;
-    transition: border-color 0.18s ease, background 0.18s ease;
+    transition: border-color 0.18s ease, background 0.18s ease, transform 0.2s cubic-bezier(0.22,1,0.36,1);
     overflow: hidden;
     margin-top: 0.5rem;
   }
+  .lg-btn:active:not(:disabled) { transform: scale(0.98); }
+  .lg-btn .btn-shine {
+    position: absolute;
+    top: 0; left: -60%;
+    width: 40%; height: 100%;
+    background: linear-gradient(115deg, transparent, rgba(255,255,255,0.35), transparent);
+    transform: skewX(-18deg);
+    transition: left 0.7s cubic-bezier(0.22,1,0.36,1);
+    pointer-events: none;
+  }
+  .lg-btn:hover:not(:disabled) .btn-shine { left: 130%; }
   .lg-btn .corner-tl, .lg-btn .corner-br {
     position: absolute;
     width: 5px; height: 5px;
@@ -327,6 +338,7 @@ const Login = () => {
             <div className="lg-reveal" data-delay="4">
               <button type="submit" disabled={loading} className="lg-btn">
                 <div className="corner-tl" />
+                <span className="btn-shine" />
                 <div className="link-text">
                   <div className="link-track">
                     <span>{loading ? 'Signing in...' : 'Sign in'}</span>

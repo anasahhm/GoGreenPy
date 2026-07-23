@@ -1,1056 +1,674 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import gsap from 'gsap';
+import {
+  Sparkles,
+  Car,
+  Zap,
+  Utensils,
+  Droplets,
+  ShoppingBag,
+  BrainCircuit,
+  ArrowRight,
+  ArrowUpRight,
+  Loader2,
+} from 'lucide-react';
 import { calculateImpact } from '../services/api';
-import { useWeatherData } from '../components/WeatherWidget';
-import RewardSummaryWidget from '../components/rewards/RewardSummaryWidget';
-import RewardUnlockPopup from '../components/rewards/RewardUnlockPopup';
 
-/* ─── Styles ────────────────────────────────────────────────────────────── */
+/* ─── Styles ──────────────────────────────────────────────────────────────── */
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,500&display=swap');
 
   :root {
     --az-nav-h: 68px;
-    --az-green: #16a34a;
-    --az-green-light: #22c55e;
-    --az-border: rgba(0, 0, 0, 0.12);
-    --az-box-bg: rgba(0, 0, 0, 0.04);
-    --az-link: rgba(30, 30, 30, 0.65);
-    --az-link-hover: #111;
-  }
-
-  @keyframes az-fade-up {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes az-line-grow {
-    from { transform: scaleX(0); }
-    to   { transform: scaleX(1); }
-  }
-  @keyframes az-gradient-shift {
-    0%   { background-position: 0%; }
-    100% { background-position: 300%; }
-  }
-  @keyframes az-result-in {
-    from { opacity: 0; transform: translateY(28px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes az-score-pop {
-    0%   { opacity: 0; transform: scale(0.88); }
-    60%  { transform: scale(1.04); }
-    100% { opacity: 1; transform: scale(1); }
-  }
-  @keyframes az-tip-in {
-    from { opacity: 0; transform: translateX(-10px); }
-    to   { opacity: 1; transform: translateX(0); }
-  }
-  @keyframes az-spin {
-    to { transform: rotate(360deg); }
+    --az-ink: #f5f5f7;
+    --az-ink-dim: rgba(245,245,247,0.55);
+    --az-ink-faint: rgba(245,245,247,0.32);
+    --az-glass-bg: linear-gradient(160deg, rgba(255,255,255,0.055), rgba(255,255,255,0.015));
+    --az-glass-border: rgba(255,255,255,0.08);
+    --az-violet: #a78bfa;
+    --az-blue: #60a5fa;
+    --az-pink: #f472b6;
+    --az-radius: 20px;
   }
 
   .az-page {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: calc(var(--az-nav-h) + 2.5rem) 1.5rem 5rem;
-    font-family: "Geist Mono", monospace;
-  }
-
-  .az-reveal {
-    opacity: 0;
-    animation: az-fade-up 0.55s cubic-bezier(0.22,1,0.36,1) forwards;
-  }
-  .az-reveal[data-delay="0"] { animation-delay: 0.05s; }
-  .az-reveal[data-delay="1"] { animation-delay: 0.13s; }
-  .az-reveal[data-delay="2"] { animation-delay: 0.21s; }
-
-  .az-title {
-    font-size: clamp(1.4rem, 3vw, 2rem);
-    font-weight: 700;
-    letter-spacing: -0.02em;
-    color: #111;
-    line-height: 1;
     position: relative;
-    display: inline-block;
-    margin-bottom: 2.5rem;
+    z-index: 1;
+    max-width: 1040px;
+    margin: 0 auto;
+    padding: calc(var(--az-nav-h) + 3rem) 1.75rem 5rem;
+    font-family: "Geist Mono", monospace;
+    color: var(--az-ink);
+    min-height: 100vh;
   }
-  .az-title::after {
+
+  .az-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: #06060a;
+    overflow: hidden;
+  }
+  .az-bg::before {
     content: '';
     position: absolute;
-    bottom: -6px; left: 0;
-    width: 100%; height: 2px;
-    background: linear-gradient(90deg, var(--az-green), var(--az-green-light), var(--az-green));
-    background-size: 300%;
-    animation: az-gradient-shift 2.4s linear infinite,
-               az-line-grow 0.6s 0.15s cubic-bezier(0.22,1,0.36,1) both;
-    transform-origin: left;
+    top: -18%; right: -12%;
+    width: 55vw; height: 55vw;
+    max-width: 650px; max-height: 650px;
+    background: radial-gradient(circle, rgba(244,114,182,0.12), transparent 65%);
+    filter: blur(10px);
+  }
+  .az-bg::after {
+    content: '';
+    position: absolute;
+    bottom: -22%; left: -10%;
+    width: 55vw; height: 55vw;
+    max-width: 620px; max-height: 620px;
+    background: radial-gradient(circle, rgba(96,165,250,0.13), transparent 65%);
+    filter: blur(10px);
+  }
+  .az-bg-vignette {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, transparent 40%, rgba(0,0,0,0.55) 100%);
+    pointer-events: none;
+  }
+
+  .gs-reveal { opacity: 0; }
+
+  .az-hero { margin-bottom: 2.5rem; }
+  .az-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--az-violet);
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(167,139,250,0.1);
+    border: 1px solid rgba(167,139,250,0.22);
+    margin-bottom: 1rem;
+  }
+  .az-title {
+    font-family: "Fraunces", serif;
+    font-size: clamp(2rem, 4.4vw, 3.1rem);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--az-ink);
+    line-height: 1.05;
+    margin: 0 0 0.6rem;
+  }
+  .az-subtitle {
+    font-size: 0.88rem;
+    color: var(--az-ink-dim);
+    max-width: 540px;
+    line-height: 1.6;
   }
 
   .az-panel {
     position: relative;
-    border: 1px solid var(--az-border);
-    border-radius: 4px;
-    background: #fff;
+    border-radius: var(--az-radius);
+    background: var(--az-glass-bg);
+    border: 1px solid var(--az-glass-border);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
     padding: 2rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1.1rem;
     overflow: hidden;
-    transition: border-color 0.22s ease, box-shadow 0.22s ease;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 50px -30px rgba(0,0,0,0.6);
   }
-  .az-panel:hover {
-    border-color: rgba(0,0,0,0.2);
-    box-shadow: 0 4px 24px rgba(0,0,0,0.05);
-  }
-  .az-panel::before,
-  .az-panel::after {
-    content: '';
-    position: absolute;
-    width: 8px; height: 8px;
-    opacity: 0;
-    transition: opacity 0.22s ease;
-    pointer-events: none;
-    z-index: 2;
-  }
-  .az-panel::before {
-    top: -1px; left: -1px;
-    border-top: 1px solid rgba(22,163,74,0.65);
-    border-left: 1px solid rgba(22,163,74,0.65);
-  }
-  .az-panel::after {
-    bottom: -1px; right: -1px;
-    border-bottom: 1px solid rgba(22,163,74,0.65);
-    border-right: 1px solid rgba(22,163,74,0.65);
-  }
-  .az-panel:hover::before,
-  .az-panel:hover::after { opacity: 1; }
 
   .az-section-label {
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: rgba(0,0,0,0.35);
+    color: var(--az-ink);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 1.25rem;
+    gap: 0.6rem;
+    margin-bottom: 1.4rem;
   }
-  .az-section-label::before {
-    content: '';
-    display: inline-block;
-    width: 16px; height: 1px;
-    background: var(--az-green);
-    opacity: 0.7;
+  .az-section-icon {
+    width: 26px; height: 26px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, rgba(167,139,250,0.18), rgba(96,165,250,0.18));
+    color: var(--az-violet);
   }
 
   .az-subsection {
-    margin-top: 1.5rem;
-    padding-top: 1.25rem;
-    border-top: 1px solid rgba(0,0,0,0.07);
-  }
-  .az-subsection-label {
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: rgba(0,0,0,0.28);
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-  .az-subsection-label::before {
-    content: '';
-    display: inline-block;
-    width: 10px; height: 1px;
-    background: rgba(0,0,0,0.25);
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255,255,255,0.07);
   }
 
   .az-form-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 1.25rem;
-    margin-bottom: 1.75rem;
-  }
-  .az-form-grid-3 {
-    display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1.25rem;
+    margin-bottom: 0.5rem;
   }
-  @media (max-width: 700px) {
-    .az-form-grid, .az-form-grid-3 { grid-template-columns: 1fr; }
-  }
+  @media (max-width: 900px) { .az-form-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 600px) { .az-form-grid { grid-template-columns: 1fr; } }
 
-  .az-field {
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-  }
+  .az-field { display: flex; flex-direction: column; gap: 0.5rem; }
 
   .az-label {
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: rgba(0,0,0,0.45);
-  }
-  .az-label-hint {
-    font-size: 0.6rem;
-    font-weight: 400;
-    color: rgba(0,0,0,0.3);
-    margin-left: 0.3rem;
-    text-transform: none;
-    letter-spacing: 0;
-  }
-
-  .az-input,
-  .az-select {
-    font-family: "Geist Mono", monospace;
-    font-size: 0.82rem;
+    font-size: 0.66rem;
     font-weight: 600;
-    color: #111;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--az-ink-dim);
+  }
+  .az-label-hint { font-size: 0.6rem; font-weight: 400; color: var(--az-ink-faint); }
+
+  .az-input, .az-select {
+    font-family: "Geist Mono", monospace;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--az-ink);
     width: 100%;
-    padding: 0.55rem 0.85rem;
-    border: 1px solid var(--az-border);
-    border-radius: 3px;
-    background: #fff;
+    padding: 0.65rem 0.85rem;
+    border: 1px solid var(--az-glass-border);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
     outline: none;
-    transition: border-color 0.18s ease, box-shadow 0.18s ease;
-    appearance: none;
-    -webkit-appearance: none;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
     box-sizing: border-box;
   }
-  .az-input:focus,
-  .az-select:focus {
-    border-color: rgba(22,163,74,0.55);
-    box-shadow: 0 0 0 3px rgba(22,163,74,0.08);
+  .az-input:focus, .az-select:focus {
+    border-color: rgba(167,139,250,0.55);
+    box-shadow: 0 0 0 3px rgba(167,139,250,0.14);
+    background: rgba(255,255,255,0.05);
   }
-  .az-input:hover:not(:focus),
-  .az-select:hover:not(:focus) {
-    border-color: rgba(0,0,0,0.22);
-  }
-  .az-input[type="range"] {
-    padding: 0.4rem 0;
-    cursor: pointer;
-    border: none;
-    box-shadow: none;
-    background: transparent;
-  }
-  .az-input[type="range"]:focus { box-shadow: none; border: none; }
+  .az-select option { background: #111114; color: var(--az-ink); }
 
-  .az-select-wrap {
-    position: relative;
-  }
-  .az-select-wrap::after {
-    content: '▾';
-    position: absolute;
-    right: 0.85rem;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 0.7rem;
-    color: rgba(0,0,0,0.35);
-    pointer-events: none;
-  }
+  .az-range { flex: 1; accent-color: var(--az-violet); height: 4px; }
 
-  .az-range-row {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-  }
-  .az-range-val {
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: var(--az-green);
-    min-width: 2.5rem;
-    text-align: right;
-    white-space: nowrap;
-  }
-
-  .az-error {
-    border: 1px solid rgba(185,28,28,0.3);
-    background: rgba(185,28,28,0.05);
-    border-radius: 3px;
-    padding: 0.7rem 1rem;
-    font-size: 0.78rem;
-    color: #b91c1c;
-    letter-spacing: 0.03em;
-    margin-bottom: 1.25rem;
-    animation: az-fade-up 0.3s ease;
-    display: flex;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-  .az-error::before { content: '!'; font-weight: 700; flex-shrink: 0; margin-top: 0.02rem; }
-
-  .az-weather-banner {
-    border: 1px solid rgba(22,163,74,0.2);
-    border-radius: 3px;
-    background: rgba(22,163,74,0.03);
-    padding: 0.75rem 1rem;
-    margin-bottom: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-  .az-weather-label {
-    font-size: 0.6rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    color: var(--az-green);
-    white-space: nowrap;
-  }
-  .az-weather-chips {
-    display: flex;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    flex: 1;
-  }
-  .az-weather-chip {
-    font-size: 0.65rem;
-    font-weight: 600;
-    padding: 0.2rem 0.55rem;
-    border: 1px solid rgba(0,0,0,0.1);
-    border-radius: 3px;
-    color: rgba(0,0,0,0.55);
-    background: rgba(0,0,0,0.03);
-  }
-  .az-weather-chip strong {
-    color: #111;
-    font-weight: 700;
-  }
+  .az-error { color: var(--az-pink); font-size: 0.68rem; margin-top: 0.1rem; }
 
   .az-submit {
     position: relative;
     width: 100%;
-    display: inline-flex;
+    padding: 0.95rem 1.2rem;
+    margin-top: 2rem;
+    font-family: "Geist Mono", monospace;
+    font-size: 0.76rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #a78bfa, #60a5fa);
+    color: #08080b;
+    cursor: pointer;
+    overflow: hidden;
+    transition: transform 0.25s cubic-bezier(0.22,1,0.36,1), box-shadow 0.25s ease, opacity 0.2s ease;
+    display: flex;
     align-items: center;
     justify-content: center;
-    font-family: "Geist Mono", monospace;
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.13em;
-    text-transform: uppercase;
-    padding: 0.75rem 1.5rem;
-    border: 1px solid rgba(22,163,74,0.4);
-    border-radius: 3px;
-    background: rgba(22,163,74,0.07);
-    cursor: pointer;
-    color: rgba(22,163,74,0.9);
-    transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
-    overflow: hidden;
-    margin-top: 1.5rem;
+    gap: 0.6rem;
+    box-shadow: 0 0 0 1px rgba(255,255,255,0.08) inset;
   }
-  .az-submit:hover:not(:disabled) {
-    border-color: rgba(22,163,74,0.7);
-    background: rgba(22,163,74,0.13);
-    color: #15803d;
-  }
-  .az-submit:disabled { opacity: 0.55; cursor: not-allowed; }
-
-  .az-submit .corner-tl,
-  .az-submit .corner-br {
+  .az-submit:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 14px 34px -12px rgba(167,139,250,0.55), 0 0 0 1px rgba(255,255,255,0.15) inset; }
+  .az-submit:active:not(:disabled) { transform: translateY(0) scale(0.98); }
+  .az-submit:disabled { opacity: 0.65; cursor: not-allowed; }
+  .az-submit-shine {
     position: absolute;
-    width: 5px; height: 5px;
-    opacity: 0;
-    transition: opacity 0.18s ease;
+    top: 0; left: -60%;
+    width: 40%; height: 100%;
+    background: linear-gradient(115deg, transparent, rgba(255,255,255,0.55), transparent);
+    transform: skewX(-18deg);
+    transition: left 0.7s cubic-bezier(0.22,1,0.36,1);
     pointer-events: none;
   }
-  .az-submit .corner-tl {
-    top: -1px; left: -1px;
-    border-top: 1px solid rgba(22,163,74,0.65);
-    border-left: 1px solid rgba(22,163,74,0.65);
-  }
-  .az-submit .corner-br {
-    bottom: -1px; right: -1px;
-    border-bottom: 1px solid rgba(22,163,74,0.65);
-    border-right: 1px solid rgba(22,163,74,0.65);
-  }
-  .az-submit:hover:not(:disabled) .corner-tl,
-  .az-submit:hover:not(:disabled) .corner-br { opacity: 1; }
+  .az-submit:hover:not(:disabled) .az-submit-shine { left: 130%; }
+  .az-submit .az-submit-icon { transition: transform 0.3s cubic-bezier(0.22,1,0.36,1); display: flex; }
+  .az-submit:hover:not(:disabled) .az-submit-icon { transform: translateX(3px); }
+  .az-spin { animation: az-spin 0.8s linear infinite; }
+  @keyframes az-spin { to { transform: rotate(360deg); } }
 
-  .az-submit .link-text { display: block; overflow: hidden; height: 1em; }
-  .az-submit .link-track {
-    display: flex; flex-direction: column;
-    transition: transform 0.4s cubic-bezier(0.76,0,0.24,1);
-  }
-  .az-submit:hover:not(:disabled) .link-track { transform: translateY(-50%); }
-  .az-submit .link-track span { display: block; height: 1em; line-height: 1em; }
-  .az-submit .link-track span:first-child { color: rgba(22,163,74,0.85); }
-  .az-submit .link-track span:last-child  { color: #15803d; }
-
-  .az-spinner {
-    display: inline-block;
-    width: 12px; height: 12px;
-    border: 2px solid rgba(22,163,74,0.25);
-    border-top-color: var(--az-green);
-    border-radius: 50%;
-    animation: az-spin 0.7s linear infinite;
-    margin-right: 0.5rem;
-  }
-
-  .az-result { animation: az-result-in 0.5s cubic-bezier(0.22,1,0.36,1) both; }
-
-  .az-score-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.85rem;
-    margin-bottom: 1.75rem;
-  }
-  @media (max-width: 700px) { .az-score-grid { grid-template-columns: repeat(2,1fr); } }
-  @media (max-width: 420px) { .az-score-grid { grid-template-columns: 1fr; } }
-
-  .az-score-card {
-    border: 1px solid var(--az-border);
-    border-radius: 3px;
-    padding: 1rem;
-    background: #fff;
-    position: relative;
-    overflow: hidden;
-    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-    animation: az-score-pop 0.45s cubic-bezier(0.22,1,0.36,1) both;
-  }
-  .az-score-card:hover {
-    border-color: rgba(0,0,0,0.22);
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0,0,0,0.07);
-  }
-  .az-score-card::after {
-    content: '';
-    position: absolute;
-    bottom: 0; left: 0; right: 0;
-    height: 2px;
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.3s cubic-bezier(0.22,1,0.36,1);
-  }
-  .az-score-card:hover::after { transform: scaleX(1); }
-  .az-score-card.carbon::after { background: linear-gradient(90deg,#3b82f6,#60a5fa); }
-  .az-score-card.water::after  { background: linear-gradient(90deg,#06b6d4,#67e8f9); }
-  .az-score-card.energy::after { background: linear-gradient(90deg,#f59e0b,#fcd34d); }
-  .az-score-card.waste::after  { background: linear-gradient(90deg,#6b7280,#9ca3af); }
-
-  .az-score-label {
-    font-size: 0.62rem; font-weight: 700;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: rgba(0,0,0,0.38); margin-bottom: 0.4rem;
-  }
-  .az-score-value { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1; }
-  .az-score-value.carbon { color: #2563eb; }
-  .az-score-value.water  { color: #0891b2; }
-  .az-score-value.energy { color: #d97706; }
-  .az-score-value.waste  { color: #4b5563; }
-  .az-score-unit { font-size: 0.65rem; font-weight: 600; color: rgba(0,0,0,0.35); margin-top: 0.15rem; }
-
-  .az-breakdown { margin-bottom: 1.75rem; }
-  .az-breakdown-bar-wrap {
-    display: flex;
-    gap: 2px;
-    height: 8px;
-    border-radius: 4px;
-    overflow: hidden;
-    margin-bottom: 0.75rem;
-  }
-  .az-breakdown-seg { height: 100%; transition: flex 0.5s ease; }
-  .az-breakdown-legend { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; }
-  .az-breakdown-item {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-size: 0.65rem;
-    color: rgba(0,0,0,0.5);
-  }
-  .az-breakdown-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
-  .az-breakdown-pct { font-weight: 700; color: #111; }
-
-  .az-rating-value {
-    font-size: clamp(2rem, 5vw, 3rem);
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    line-height: 1;
-    margin-bottom: 0.25rem;
-  }
-  .az-rating-value.Excellent { color: #15803d; }
-  .az-rating-value.Good      { color: #1d4ed8; }
-  .az-rating-value.Moderate  { color: #b45309; }
-  .az-rating-value.Poor      { color: #c2410c; }
-  .az-rating-value.Critical  { color: #b91c1c; }
-
-  .az-ai-block {
-    border: 1px solid rgba(22,163,74,0.2);
-    border-radius: 3px;
-    background: rgba(22,163,74,0.03);
-    padding: 1.25rem 1.25rem 1.25rem 1rem;
+  .az-error-box {
+    border: 1px solid rgba(244,114,182,0.25);
+    border-radius: 14px;
+    background: rgba(244,114,182,0.06);
+    padding: 1.1rem 1.3rem;
+    font-size: 0.75rem;
+    color: #fbcfe8;
     margin-bottom: 1.5rem;
-    position: relative;
-    overflow: hidden;
-    animation: az-fade-up 0.45s 0.3s ease both;
   }
-  .az-ai-block::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 2px;
-    background: linear-gradient(180deg, var(--az-green), var(--az-green-light));
+  .az-error-box h4 { margin: 0 0 0.5rem 0; font-weight: 700; color: var(--az-pink); font-size: 0.72rem; letter-spacing: 0.05em; text-transform: uppercase; }
+
+  .az-result-score {
+    font-family: "Fraunces", serif;
+    font-size: clamp(2.8rem, 6vw, 4.2rem);
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #fff, var(--az-violet) 130%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  .az-result-rating { font-size: 0.85rem; color: var(--az-ink-dim); margin-top: 0.6rem; }
+
+  .az-ai-box {
+    position: relative;
+    background: linear-gradient(160deg, rgba(167,139,250,0.1), rgba(96,165,250,0.04));
+    border: 1px solid rgba(167,139,250,0.22);
+    border-radius: 16px;
+    padding: 1.4rem 1.5rem;
+    margin: 1.75rem 0;
   }
   .az-ai-label {
-    font-size: 0.62rem; font-weight: 700;
-    letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--az-green); margin-bottom: 0.6rem;
-    display: flex; align-items: center; gap: 0.4rem;
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--az-violet); margin-bottom: 0.7rem;
   }
-  .az-ai-text { font-size: 0.8rem; line-height: 1.7; color: #333; font-weight: 400; }
+  .az-ai-text { font-size: 0.86rem; line-height: 1.75; color: var(--az-ink-dim); margin: 0; }
 
-  .az-weather-result {
-    border: 1px solid rgba(0,119,182,0.18);
-    border-radius: 3px;
-    background: rgba(0,119,182,0.03);
-    padding: 0.9rem 1rem;
-    margin-bottom: 1.5rem;
-    position: relative;
-    padding-left: 1rem;
+  .az-tip-row {
+    display: flex; align-items: flex-start; gap: 0.65rem;
+    font-size: 0.84rem; color: var(--az-ink-dim);
+    padding: 0.75rem 0; border-top: 1px solid rgba(255,255,255,0.06);
   }
-  .az-weather-result::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 2px;
-    background: linear-gradient(180deg, #0077b6, #48cae4);
-  }
+  .az-tip-row:first-child { border-top: none; }
 
-  .az-tip {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.6rem;
-    font-size: 0.8rem;
-    color: #333;
-    line-height: 1.55;
-    padding: 0.45rem 0;
-    border-bottom: 1px solid rgba(0,0,0,0.055);
-    opacity: 0;
-    animation: az-tip-in 0.38s cubic-bezier(0.22,1,0.36,1) forwards;
-  }
-  .az-tip:last-child { border-bottom: none; }
-  .az-tip-arrow { color: var(--az-green); font-size: 0.7rem; margin-top: 0.2rem; flex-shrink: 0; }
-  .az-tip-tag {
-    font-size: 0.58rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    padding: 0.1rem 0.35rem;
-    border-radius: 2px;
-    flex-shrink: 0;
-    margin-top: 0.15rem;
-  }
-  .az-tip-tag.weather   { background: rgba(0,119,182,0.1); color: #0077b6; }
-  .az-tip-tag.energy    { background: rgba(245,158,11,0.12); color: #b45309; }
-  .az-tip-tag.diet      { background: rgba(22,163,74,0.1); color: #15803d; }
-  .az-tip-tag.transport { background: rgba(99,102,241,0.1); color: #4338ca; }
-  .az-tip-tag.waste     { background: rgba(107,114,128,0.12); color: #374151; }
-
-  .az-dash-btn {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    font-family: "Geist Mono", monospace;
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.13em;
-    text-transform: uppercase;
-    padding: 0.7rem 1.5rem;
-    border: 1px solid var(--az-border);
-    border-radius: 3px;
-    background: none;
+  .az-dash-link {
+    margin-top: 1.75rem;
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.75rem 1.3rem;
+    border-radius: 999px;
+    border: 1px solid var(--az-glass-border);
+    background: rgba(255,255,255,0.03);
+    color: var(--az-ink);
+    font-size: 0.74rem; font-weight: 600; letter-spacing: 0.06em;
     cursor: pointer;
-    color: var(--az-link);
-    margin-top: 1.5rem;
-    overflow: hidden;
-    transition: border-color 0.18s ease, background 0.18s ease;
+    transition: transform 0.25s cubic-bezier(0.22,1,0.36,1), border-color 0.2s ease;
   }
-  .az-dash-btn:hover {
-    border-color: rgba(0,0,0,0.26);
-    background: var(--az-box-bg);
-  }
-  .az-dash-btn .corner-tl,
-  .az-dash-btn .corner-br {
-    position: absolute;
-    width: 5px; height: 5px;
-    opacity: 0;
-    transition: opacity 0.18s ease;
-  }
-  .az-dash-btn .corner-tl { top: -1px; left: -1px; border-top: 1px solid rgba(0,0,0,0.45); border-left: 1px solid rgba(0,0,0,0.45); }
-  .az-dash-btn .corner-br { bottom: -1px; right: -1px; border-bottom: 1px solid rgba(0,0,0,0.45); border-right: 1px solid rgba(0,0,0,0.45); }
-  .az-dash-btn:hover .corner-tl,
-  .az-dash-btn:hover .corner-br { opacity: 1; }
-  .az-dash-btn .link-text { display: block; overflow: hidden; height: 1em; }
-  .az-dash-btn .link-track { display: flex; flex-direction: column; transition: transform 0.4s cubic-bezier(0.76,0,0.24,1); }
-  .az-dash-btn:hover .link-track { transform: translateY(-50%); }
-  .az-dash-btn .link-track span { display: block; height: 1em; line-height: 1em; }
-  .az-dash-btn .link-track span:first-child { color: var(--az-link); }
-  .az-dash-btn .link-track span:last-child  { color: var(--az-link-hover); }
+  .az-dash-link:hover { transform: translateY(-2px); border-color: rgba(167,139,250,0.35); }
 `;
 
-/* ─── helpers ─────────────────────────────────────────────────────────────── */
-const Field = ({ label, hint, children }) => (
-  <div className="az-field">
-    <label className="az-label">
-      {label}
-      {hint && <span className="az-label-hint">({hint})</span>}
-    </label>
-    {children}
-  </div>
-);
-
-const RangeField = ({ label, hint, name, min, max, step, value, unit, onChange }) => (
-  <div className="az-field">
-    <label className="az-label">
-      {label}
-      {hint && <span className="az-label-hint">({hint})</span>}
-    </label>
-    <div className="az-range-row">
-      <input
-        type="range"
-        name={name}
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={onChange}
-        className="az-input"
-        style={{ flex: 1 }}
-      />
-      <span className="az-range-val">{value}{unit}</span>
-    </div>
-  </div>
-);
-
-const BREAKDOWN_COLORS = {
-  transport:   '#3b82f6',
-  electricity: '#f59e0b',
-  diet:        '#16a34a',
-  waste:       '#6b7280',
-  flights:     '#8b5cf6',
-  heating:     '#ef4444',
-};
-
-/* ─── Extract a readable error message from any axios error ──────────────── */
-const extractErrorMessage = (err) => {
-  // Network / CORS — no response at all
-  if (!err.response) {
-    return `Network error: ${err.message || 'Could not reach the server. Check that the backend is running.'}`;
-  }
-
-  const { status, data } = err.response;
-
-  // 401 / 403 — auth
-  if (status === 401) return 'Session expired. Please log in again.';
-  if (status === 403) return 'You do not have permission to perform this action.';
-
-  // FastAPI validation errors come as { detail: [ { loc, msg, type } ] }
-  if (Array.isArray(data?.detail)) {
-    return data.detail
-      .map((e) => `${e.loc?.slice(1).join(' → ') ?? 'field'}: ${e.msg}`)
-      .join(' | ');
-  }
-
-  // Plain string detail
-  if (typeof data?.detail === 'string') return data.detail;
-
-  // Fallback
-  return `Server error (${status}). Please try again.`;
-};
-
-/* ─── Component ───────────────────────────────────────────────────────────── */
+/**
+ * Analyzer - Impact Calculator
+ *
+ * CRITICAL: Field names MUST match backend ImpactInput schema:
+ * - transport_method (NOT transport_type)
+ * - transport_km (NOT distance_km)
+ * - NO frequency_days_per_week, car_type, public_transport_km
+ * - Must include: screen_hours (default 4)
+ */
 const Analyzer = () => {
+  const navigate = useNavigate();
+  const pageRef = useRef(null);
+
+  // ✅ Schema matches backend ImpactInput exactly
   const [formData, setFormData] = useState({
-    transport_method:    'car',
-    transport_km:        0,
-    electricity_kwh:     0,
-    water_liters:        150,
-    diet_type:           'mixed',
-    waste_kg:            0.5,
-    renewable_pct:       0,
-    flights_per_year:    0,
-    heating_fuel:        'none',
-    heating_hours:       0,
+    transport_method: 'car',
+    transport_km: 0,
+    electricity_kwh: 0,
+    water_liters: 100,
+    diet_type: 'mixed',
+    waste_kg: 0.5,
+    renewable_pct: 0,
+    flights_per_year: 0,
+    heating_fuel: 'none',
+    heating_hours: 0,
     meat_meals_per_week: 7,
-    plant_based_swaps:   0,
-    new_clothing_items:  0,
-    online_orders:       0,
-    screen_hours:        4,
-    recycling_pct:       50,
+    plant_based_swaps: 0,
+    new_clothing_items: 0,
+    online_orders: 0,
+    screen_hours: 4,
+    recycling_pct: 50,
   });
 
-  const [result,  setResult]  = useState(null);
+  const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error,   setError]   = useState('');
-  const navigate = useNavigate();
+  const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
-  const { weather } = useWeatherData(import.meta.env.VITE_OWM_API_KEY);
+  useEffect(() => {
+    if (!pageRef.current) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        pageRef.current.querySelectorAll('.gs-reveal'),
+        { opacity: 0, y: 24 },
+        { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out', stagger: 0.09, clearProps: 'transform' }
+      );
+    }, pageRef);
+    return () => ctx.revert();
+  }, []);
+
+  useEffect(() => {
+    if (!result || !pageRef.current) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        pageRef.current.querySelectorAll('.gs-result'),
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out', stagger: 0.08, clearProps: 'transform' }
+      );
+    }, pageRef);
+    return () => ctx.revert();
+  }, [result]);
+
+  /**
+   * Validate form data before submission
+   */
+  const validateForm = () => {
+    const errors = {};
+
+    if (formData.transport_km < 0) errors.transport_km = 'Must be >= 0';
+    if (formData.electricity_kwh < 0) errors.electricity_kwh = 'Must be >= 0';
+    if (formData.water_liters < 0) errors.water_liters = 'Must be >= 0';
+    if (formData.waste_kg < 0) errors.waste_kg = 'Must be >= 0';
+    if (formData.renewable_pct < 0 || formData.renewable_pct > 100) {
+      errors.renewable_pct = 'Must be 0-100';
+    }
+    if (formData.flights_per_year < 0) errors.flights_per_year = 'Must be >= 0';
+    if (formData.heating_hours < 0 || formData.heating_hours > 24) {
+      errors.heating_hours = 'Must be 0-24';
+    }
+    if (formData.meat_meals_per_week < 0 || formData.meat_meals_per_week > 21) {
+      errors.meat_meals_per_week = 'Must be 0-21';
+    }
+    if (formData.plant_based_swaps < 0 || formData.plant_based_swaps > 3) {
+      errors.plant_based_swaps = 'Must be 0-3';
+    }
+    if (formData.new_clothing_items < 0) errors.new_clothing_items = 'Must be >= 0';
+    if (formData.online_orders < 0) errors.online_orders = 'Must be >= 0';
+    if (formData.screen_hours < 0 || formData.screen_hours > 24) {
+      errors.screen_hours = 'Must be 0-24';
+    }
+    if (formData.recycling_pct < 0 || formData.recycling_pct > 100) {
+      errors.recycling_pct = 'Must be 0-100';
+    }
+
+    setFieldErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   const handleChange = (e) => {
-    const val =
-      e.target.type === 'range' || e.target.type === 'number'
-        ? parseFloat(e.target.value)
-        : e.target.value;
-    setFormData((prev) => ({ ...prev, [e.target.name]: val }));
+    const { name, value } = e.target;
+
+    if (fieldErrors[name]) {
+      setFieldErrors(prev => {
+        const updated = { ...prev };
+        delete updated[name];
+        return updated;
+      });
+    }
+
+    const numericFields = [
+      'transport_km', 'electricity_kwh', 'water_liters', 'waste_kg',
+      'renewable_pct', 'flights_per_year', 'heating_hours',
+      'meat_meals_per_week', 'plant_based_swaps', 'new_clothing_items',
+      'online_orders', 'screen_hours', 'recycling_pct'
+    ];
+
+    const numValue = numericFields.includes(name) ? parseFloat(value) || 0 : value;
+
+    setFormData(prev => ({
+      ...prev,
+      [name]: numValue
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-    setResult(null);
     setLoading(true);
 
+    if (!validateForm()) {
+      setError('Please fix validation errors below');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const payload = {
-        transport_method:    formData.transport_method,
-        transport_km:        parseFloat(formData.transport_km)        || 0,
-        electricity_kwh:     parseFloat(formData.electricity_kwh)     || 0,
-        water_liters:        parseFloat(formData.water_liters)        || 0,
-        diet_type:           formData.diet_type,
-        waste_kg:            parseFloat(formData.waste_kg)            || 0,
-        renewable_pct:       parseFloat(formData.renewable_pct)       || 0,
-        flights_per_year:    parseFloat(formData.flights_per_year)    || 0,
-        heating_fuel:        formData.heating_fuel,
-        heating_hours:       parseFloat(formData.heating_hours)       || 0,
-        meat_meals_per_week: parseFloat(formData.meat_meals_per_week) || 0,
-        plant_based_swaps:   parseInt(formData.plant_based_swaps, 10) || 0,
-        new_clothing_items:  parseFloat(formData.new_clothing_items)  || 0,
-        online_orders:       parseFloat(formData.online_orders)       || 0,
-        screen_hours:        parseFloat(formData.screen_hours)        || 0,
-        recycling_pct:       parseFloat(formData.recycling_pct)       || 0,
-        weather_context: weather
-          ? {
-              temp:      weather.temp,
-              humidity:  weather.humidity,
-              aqi:       weather.aqi       ?? null,
-              uv_index:  weather.uvIndex   ?? null,
-              condition: weather.condition ?? null,
-              city:      weather.cityName  ?? null,
-            }
-          : null,
+      // ✅ CRITICAL: Ensure all values match backend schema
+      const cleanData = {
+        transport_method: formData.transport_method || 'car',
+        transport_km: Number(formData.transport_km) || 0,
+        electricity_kwh: Number(formData.electricity_kwh) || 0,
+        water_liters: Number(formData.water_liters) || 100,
+        diet_type: formData.diet_type || 'mixed',
+        waste_kg: Number(formData.waste_kg) || 0.5,
+        renewable_pct: Number(formData.renewable_pct) || 0,
+        flights_per_year: Number(formData.flights_per_year) || 0,
+        heating_fuel: formData.heating_fuel || 'none',
+        heating_hours: Number(formData.heating_hours) || 0,
+        meat_meals_per_week: Number(formData.meat_meals_per_week) || 7,
+        plant_based_swaps: Number(formData.plant_based_swaps) || 0,
+        new_clothing_items: Number(formData.new_clothing_items) || 0,
+        online_orders: Number(formData.online_orders) || 0,
+        screen_hours: Number(formData.screen_hours) || 4,
+        recycling_pct: Number(formData.recycling_pct) || 50,
       };
 
-      const response = await calculateImpact(payload);
+      console.log('✅ Sending correct schema:', cleanData);
 
-      // Support both { data: ... } (axios) and plain object responses
-      const data = response?.data ?? response;
-      if (!data || typeof data !== 'object') {
-        throw new Error('Unexpected response format from server.');
-      }
-
-      setResult(data);
+      const response = await calculateImpact(cleanData);
+      setResult(response.data);
     } catch (err) {
-      setError(extractErrorMessage(err));
+      console.error('❌ Error:', err);
+
+      if (err.response?.status === 422) {
+        const errorData = err.response?.data;
+        let errorMsg = '⚠️ Validation Error\n\nBackend rejected these fields:\n\n';
+
+        if (errorData?.detail) {
+          if (Array.isArray(errorData.detail)) {
+            errorData.detail.forEach(e => {
+              errorMsg += `• ${e.loc?.[1] || 'Field'}: ${e.msg}\n`;
+            });
+          } else {
+            errorMsg += errorData.detail;
+          }
+        }
+
+        setError(errorMsg);
+      } else {
+        setError(err.response?.data?.detail || err.message || 'Failed to calculate impact');
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const buildBreakdown = (r) => {
-    if (!r?.breakdown) return null;
-    const total = Object.values(r.breakdown).reduce((a, b) => a + b, 0);
-    if (total === 0) return null;
-    return Object.entries(r.breakdown).map(([k, v]) => ({
-      key:   k,
-      pct:   Math.round((v / total) * 100),
-      val:   v.toFixed(2),
-      color: BREAKDOWN_COLORS[k] || '#9ca3af',
-      label: {
-        transport:   'Transport',
-        electricity: 'Electricity',
-        diet:        'Diet',
-        waste:       'Waste',
-        flights:     'Flights',
-        heating:     'Heating',
-      }[k] || k,
-    }));
-  };
+  const Field = ({ label, hint, name, type = 'number', min = 0, max, step = 'any', children, error }) => (
+    <div className="az-field">
+      <label className="az-label">
+        {label}
+        {hint && <span className="az-label-hint"> ({hint})</span>}
+      </label>
+      {children || (
+        <input
+          type={type}
+          name={name}
+          min={min}
+          max={max}
+          step={step}
+          value={formData[name] ?? 0}
+          onChange={handleChange}
+          className="az-input"
+        />
+      )}
+      {error && <span className="az-error">{error}</span>}
+    </div>
+  );
 
   return (
     <>
       <style>{styles}</style>
+      <div className="az-bg">
+        <div className="az-bg-vignette" />
+      </div>
 
-      <div className="az-page">
+      <div className="az-page" ref={pageRef}>
 
-        <h1 className="az-title az-reveal" data-delay="0">
-          Environmental Impact Analyzer
-        </h1>
+        <div className="az-hero gs-reveal">
+          <span className="az-eyebrow"><Sparkles size={12} /> AI Impact Workspace</span>
+          <h1 className="az-title">Impact Analyzer</h1>
+          <p className="az-subtitle">
+            Log a day of your habits across transport, energy, diet and waste — the model turns it
+            into a carbon score and a short list of things worth changing.
+          </p>
+        </div>
 
-        {weather && (
-          <div className="az-weather-banner az-reveal" data-delay="0">
-            <span className="az-weather-label">⬡ Live conditions</span>
-            <div className="az-weather-chips">
-              <span className="az-weather-chip"><strong>{weather.temp}°C</strong> {weather.condition}</span>
-              <span className="az-weather-chip">Humidity <strong>{weather.humidity}%</strong></span>
-              {weather.aqi   && <span className="az-weather-chip">AQI <strong>{weather.aqi}</strong></span>}
-              {weather.uvIndex != null && <span className="az-weather-chip">UV <strong>{weather.uvIndex}</strong></span>}
-            </div>
+        {error && (
+          <div className="az-error-box gs-reveal">
+            <h4>Error</h4>
+            <p style={{ whiteSpace: 'pre-wrap', margin: 0, fontSize: '0.75rem' }}>{error}</p>
           </div>
         )}
 
-        <div className="az-panel az-reveal" data-delay="1">
-          <form onSubmit={handleSubmit} noValidate>
-
-            {error && <div className="az-error">{error}</div>}
-
-            {/* ── Transport ── */}
-            <p className="az-section-label">Transport</p>
+        <div className="az-panel gs-reveal">
+          <form onSubmit={handleSubmit}>
+            {/* Transport */}
+            <p className="az-section-label"><span className="az-section-icon"><Car size={14} /></span>Transport</p>
             <div className="az-form-grid">
-              <Field label="Primary Method">
-                <div className="az-select-wrap">
-                  <select name="transport_method" value={formData.transport_method} onChange={handleChange} className="az-select">
-                    <option value="car">Petrol/Diesel Car</option>
-                    <option value="ev">Electric Vehicle</option>
-                    <option value="bus">Bus</option>
-                    <option value="metro">Metro / Train</option>
-                    <option value="bike">Bicycle</option>
-                    <option value="walk">Walk</option>
-                    <option value="motorcycle">Motorcycle</option>
+              <Field label="Method" name="transport_method">
+                <select name="transport_method" value={formData.transport_method} onChange={handleChange} className="az-select">
+                  <option value="car">Car</option>
+                  <option value="ev">Electric Vehicle</option>
+                  <option value="bus">Bus</option>
+                  <option value="metro">Metro / Train</option>
+                  <option value="bike">Bike</option>
+                  <option value="walk">Walk</option>
+                  <option value="motorcycle">Motorcycle</option>
+                </select>
+              </Field>
+              <Field label="Distance" hint="km" name="transport_km" error={fieldErrors.transport_km} />
+              <Field label="Flights/Year" hint="per year" name="flights_per_year" error={fieldErrors.flights_per_year} />
+            </div>
+
+            {/* Energy */}
+            <div className="az-subsection">
+              <p className="az-section-label"><span className="az-section-icon"><Zap size={14} /></span>Energy & Heating</p>
+              <div className="az-form-grid">
+                <Field label="Electricity" hint="kWh/day" name="electricity_kwh" error={fieldErrors.electricity_kwh} />
+                <Field label="Heating Fuel" name="heating_fuel">
+                  <select name="heating_fuel" value={formData.heating_fuel} onChange={handleChange} className="az-select">
+                    <option value="none">None</option>
+                    <option value="natural_gas">Natural Gas</option>
+                    <option value="lpg">LPG</option>
+                    <option value="wood">Wood</option>
                   </select>
+                </Field>
+                <Field label="Heating Hours" hint="hrs/day" name="heating_hours" max={24} error={fieldErrors.heating_hours} />
+              </div>
+              <div className="az-field" style={{ marginTop: '1.1rem' }}>
+                <label className="az-label">Renewable Energy %</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <input
+                    type="range"
+                    name="renewable_pct"
+                    min="0"
+                    max="100"
+                    step="5"
+                    value={formData.renewable_pct}
+                    onChange={handleChange}
+                    className="az-range"
+                  />
+                  <span style={{ minWidth: '45px', textAlign: 'right', fontSize: '0.82rem' }}>{formData.renewable_pct}%</span>
                 </div>
-              </Field>
-              <Field label="Distance" hint="km today">
-                <input type="number" name="transport_km" min="0" step="0.5" value={formData.transport_km} onChange={handleChange} className="az-input" />
-              </Field>
-            </div>
-
-            <RangeField
-              label="Flights per year" hint="round trips"
-              name="flights_per_year" min={0} max={30} step={1}
-              value={formData.flights_per_year} unit=" flights"
-              onChange={handleChange}
-            />
-
-            {/* ── Energy ── */}
-            <div className="az-subsection">
-              <p className="az-subsection-label">Energy at Home</p>
-              <div className="az-form-grid">
-                <Field label="Electricity" hint="kWh today">
-                  <input type="number" name="electricity_kwh" min="0" step="0.1" value={formData.electricity_kwh} onChange={handleChange} className="az-input" />
-                </Field>
-                <Field label="Screen Time" hint="device hours">
-                  <input type="number" name="screen_hours" min="0" max="24" step="0.5" value={formData.screen_hours} onChange={handleChange} className="az-input" />
-                </Field>
-              </div>
-              <div className="az-form-grid-3">
-                <Field label="Heating / Cooking Fuel">
-                  <div className="az-select-wrap">
-                    <select name="heating_fuel" value={formData.heating_fuel} onChange={handleChange} className="az-select">
-                      <option value="none">None / Electric only</option>
-                      <option value="natural_gas">Natural Gas / PNG</option>
-                      <option value="lpg">LPG / Cylinder</option>
-                      <option value="wood">Wood / Biomass</option>
-                    </select>
-                  </div>
-                </Field>
-                <Field label="Fuel Usage" hint="hours/day">
-                  <input type="number" name="heating_hours" min="0" max="12" step="0.25" value={formData.heating_hours} onChange={handleChange} className="az-input" />
-                </Field>
-                <RangeField
-                  label="Renewable %" hint="of electricity"
-                  name="renewable_pct" min={0} max={100} step={5}
-                  value={formData.renewable_pct} unit="%"
-                  onChange={handleChange}
-                />
+                {fieldErrors.renewable_pct && <span className="az-error">{fieldErrors.renewable_pct}</span>}
               </div>
             </div>
 
-            {/* ── Diet ── */}
+            {/* Diet */}
             <div className="az-subsection">
-              <p className="az-subsection-label">Diet & Food</p>
+              <p className="az-section-label"><span className="az-section-icon"><Utensils size={14} /></span>Diet & Food</p>
               <div className="az-form-grid">
-                <Field label="Diet Pattern">
-                  <div className="az-select-wrap">
-                    <select name="diet_type" value={formData.diet_type} onChange={handleChange} className="az-select">
-                      <option value="vegan">Vegan</option>
-                      <option value="veg">Vegetarian</option>
-                      <option value="mixed">Mixed (occasional meat)</option>
-                      <option value="heavy_meat">Heavy Meat Eater</option>
-                    </select>
-                  </div>
+                <Field label="Diet Type" name="diet_type">
+                  <select name="diet_type" value={formData.diet_type} onChange={handleChange} className="az-select">
+                    <option value="vegan">Vegan</option>
+                    <option value="veg">Vegetarian</option>
+                    <option value="mixed">Mixed</option>
+                    <option value="heavy_meat">Heavy Meat</option>
+                  </select>
                 </Field>
-                <RangeField
-                  label="Meat meals / week"
-                  name="meat_meals_per_week" min={0} max={21} step={1}
-                  value={formData.meat_meals_per_week} unit=" meals"
-                  onChange={handleChange}
-                />
+                <Field label="Meat Meals/Week" hint="meals" name="meat_meals_per_week" max={21} error={fieldErrors.meat_meals_per_week} />
+                <Field label="Plant Swaps" hint="meals/day" name="plant_based_swaps" max={3} error={fieldErrors.plant_based_swaps} />
               </div>
-              <RangeField
-                label="Plant-based swaps today" hint="meals replaced with veg/vegan"
-                name="plant_based_swaps" min={0} max={3} step={1}
-                value={formData.plant_based_swaps} unit=" meals"
-                onChange={handleChange}
-              />
             </div>
 
-            {/* ── Water & Waste ── */}
+            {/* Water & Waste */}
             <div className="az-subsection">
-              <p className="az-subsection-label">Water & Waste</p>
+              <p className="az-section-label"><span className="az-section-icon"><Droplets size={14} /></span>Water & Waste</p>
               <div className="az-form-grid">
-                <Field label="Water Usage" hint="litres today">
-                  <input type="number" name="water_liters" min="0" step="5" value={formData.water_liters} onChange={handleChange} className="az-input" />
-                </Field>
-                <Field label="Waste Generated" hint="kg today">
-                  <input type="number" name="waste_kg" min="0" step="0.1" value={formData.waste_kg} onChange={handleChange} className="az-input" />
-                </Field>
+                <Field label="Water" hint="litres/day" name="water_liters" error={fieldErrors.water_liters} />
+                <Field label="Waste" hint="kg/day" name="waste_kg" step="0.1" error={fieldErrors.waste_kg} />
+                <Field label="Recycling %" hint="%" name="recycling_pct" max={100} error={fieldErrors.recycling_pct} />
               </div>
-              <RangeField
-                label="Recycling rate" hint="% of waste sorted"
-                name="recycling_pct" min={0} max={100} step={5}
-                value={formData.recycling_pct} unit="%"
-                onChange={handleChange}
-              />
             </div>
 
-            {/* ── Consumption ── */}
+            {/* Consumption & Screen Time */}
             <div className="az-subsection">
-              <p className="az-subsection-label">Consumption & Shopping</p>
+              <p className="az-section-label"><span className="az-section-icon"><ShoppingBag size={14} /></span>Consumption & Digital</p>
               <div className="az-form-grid">
-                <Field label="New Clothing" hint="items this week">
-                  <input type="number" name="new_clothing_items" min="0" step="1" value={formData.new_clothing_items} onChange={handleChange} className="az-input" />
-                </Field>
-                <Field label="Online Orders" hint="deliveries this week">
-                  <input type="number" name="online_orders" min="0" step="1" value={formData.online_orders} onChange={handleChange} className="az-input" />
-                </Field>
+                <Field label="New Clothing" hint="items/week" name="new_clothing_items" error={fieldErrors.new_clothing_items} />
+                <Field label="Online Orders" hint="per week" name="online_orders" error={fieldErrors.online_orders} />
+                <Field label="Screen Time" hint="hrs/day" name="screen_hours" max={24} error={fieldErrors.screen_hours} />
               </div>
             </div>
 
             <button type="submit" disabled={loading} className="az-submit">
-              <div className="corner-tl" />
+              <span className="az-submit-shine" />
               {loading ? (
                 <>
-                  <span className="az-spinner" />
+                  <Loader2 size={15} className="az-spin" />
                   <span>Calculating…</span>
                 </>
               ) : (
-                <div className="link-text">
-                  <div className="link-track">
-                    <span>Calculate My Impact</span>
-                    <span>Calculate My Impact</span>
-                  </div>
-                </div>
+                <>
+                  <span>Calculate My Impact</span>
+                  <span className="az-submit-icon"><ArrowRight size={15} /></span>
+                </>
               )}
-              <div className="corner-br" />
             </button>
           </form>
         </div>
 
-        {/* ── Results ── */}
+        {/* Results */}
         {result && (
-          <div className="az-panel az-result">
-            <p className="az-section-label">Your Environmental Impact</p>
-
-            <div className="az-score-grid">
-              {[
-                { key: 'carbon', label: 'Carbon Score', value: result.carbon_score, unit: 'kg CO₂', delay: '0.05s' },
-                { key: 'water',  label: 'Water Score',  value: result.water_score,  unit: 'L',      delay: '0.12s' },
-                { key: 'energy', label: 'Energy Score', value: result.energy_score, unit: 'kWh',    delay: '0.19s' },
-                { key: 'waste',  label: 'Waste Score',  value: result.waste_score,  unit: 'kg',     delay: '0.26s' },
-              ].map((c) => (
-                <div key={c.key} className={`az-score-card ${c.key}`} style={{ animationDelay: c.delay }}>
-                  <p className="az-score-label">{c.label}</p>
-                  <p className={`az-score-value ${c.key}`}>{c.value}</p>
-                  <p className="az-score-unit">{c.unit}</p>
-                </div>
-              ))}
+          <div className="az-panel gs-result">
+            <p className="az-section-label"><span className="az-section-icon"><Sparkles size={14} /></span>Your Impact</p>
+            <div style={{ marginBottom: '0.5rem' }}>
+              <p className="az-result-score">{result.carbon_score || 0} <span style={{ fontSize: '1.1rem', WebkitTextFillColor: 'var(--az-ink-dim)' }}>kg CO₂</span></p>
+              <p className="az-result-rating">{result.overall_rating}</p>
             </div>
-
-            {result.breakdown && (() => {
-              const segs = buildBreakdown(result);
-              if (!segs) return null;
-              return (
-                <div className="az-breakdown">
-                  <p className="az-section-label">Carbon Breakdown</p>
-                  <div className="az-breakdown-bar-wrap">
-                    {segs.map((s) => (
-                      <div
-                        key={s.key}
-                        className="az-breakdown-seg"
-                        style={{ flex: s.pct, background: s.color }}
-                        title={`${s.label}: ${s.val} kg (${s.pct}%)`}
-                      />
-                    ))}
-                  </div>
-                  <div className="az-breakdown-legend">
-                    {segs.map((s) => (
-                      <div key={s.key} className="az-breakdown-item">
-                        <div className="az-breakdown-dot" style={{ background: s.color }} />
-                        <span>{s.label}</span>
-                        <span className="az-breakdown-pct">{s.pct}%</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-
-            <div style={{ marginBottom: '1.75rem' }}>
-              <p className="az-section-label">Overall Rating</p>
-              <p className={`az-rating-value ${result.overall_rating}`}>{result.overall_rating}</p>
-              {result.carbon_vs_avg != null && (
-                <p style={{ fontSize: '0.75rem', color: 'rgba(0,0,0,0.45)', marginTop: '0.4rem' }}>
-                  {result.carbon_vs_avg > 0
-                    ? `${result.carbon_vs_avg.toFixed(1)} kg CO₂ above daily average`
-                    : `${Math.abs(result.carbon_vs_avg).toFixed(1)} kg CO₂ below daily average`}
-                </p>
-              )}
-            </div>
-
-            {result.weather_insight && (
-              <div className="az-weather-result">
-                <p className="az-ai-label" style={{ color: '#0077b6' }}>⛅ Weather-aware insight</p>
-                <p className="az-ai-text">{result.weather_insight}</p>
-              </div>
-            )}
 
             {result.ai_analysis && (
-              <div className="az-ai-block">
-                <p className="az-ai-label">⬡ AI-Powered Analysis</p>
+              <div className="az-ai-box">
+                <p className="az-ai-label"><BrainCircuit size={14} /> AI Analysis</p>
                 <p className="az-ai-text">{result.ai_analysis}</p>
               </div>
             )}
 
-            <p className="az-section-label">Personalized Tips</p>
-            <div style={{ marginBottom: '0.5rem' }}>
-              {(result.tips || []).map((tip, i) => {
-                const isObj = tip && typeof tip === 'object';
-                const text  = isObj ? tip.text : tip;
-                const tag   = isObj ? tip.tag  : null;
-                return (
-                  <div key={i} className="az-tip" style={{ animationDelay: `${0.35 + i * 0.07}s` }}>
-                    <span className="az-tip-arrow">→</span>
-                    {tag && <span className={`az-tip-tag ${tag}`}>{tag}</span>}
-                    <span>{text}</span>
+            {result.tips && (
+              <div>
+                <p className="az-section-label" style={{ marginBottom: '0.25rem' }}>Tips</p>
+                {result.tips.map((tip, i) => (
+                  <div key={i} className="az-tip-row">
+                    <ArrowRight size={13} style={{ color: 'var(--az-violet)', marginTop: '0.15rem', flexShrink: 0 }} />
+                    <span>{typeof tip === 'string' ? tip : tip.text || tip}</span>
                   </div>
-                );
-              })}
-            </div>
-
-            {result.reward_summary && (
-              <div style={{ marginTop: '1.5rem' }}>
-                <p className="az-ai-label" style={{ marginBottom: '0.6rem' }}>⬡ Eco Reward</p>
-                <RewardSummaryWidget rewardSummary={result.reward_summary} />
+                ))}
               </div>
             )}
 
-            <button onClick={() => navigate('/dashboard')} className="az-dash-btn">
-              <div className="corner-tl" />
-              <div className="link-text">
-                <div className="link-track">
-                  <span>View Dashboard</span>
-                  <span>View Dashboard</span>
-                </div>
-              </div>
-              <div className="corner-br" />
+            <button onClick={() => navigate('/dashboard')} className="az-dash-link">
+              View Dashboard <ArrowUpRight size={14} />
             </button>
           </div>
         )}
       </div>
-      <RewardUnlockPopup newlyCoupons={result?.reward_summary?.newly_claimed_coupons || []} />
     </>
   );
 };

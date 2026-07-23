@@ -1,470 +1,460 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+import gsap from 'gsap';
+import { History as HistoryIcon, RotateCcw, Inbox, ChevronLeft, ChevronRight } from 'lucide-react';
 import { getHistory } from '../services/api';
 import LoadingSpinner from '../components/LoadingSpinner';
 
 /* ─── Styles ──────────────────────────────────────────────────────────────── */
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,500&display=swap');
 
   :root {
     --hist-nav-h: 68px;
-    --hist-green: #16a34a;
-    --hist-green-light: #22c55e;
-    --hist-border: rgba(0, 0, 0, 0.12);
-    --hist-box-bg: rgba(0, 0, 0, 0.04);
-    --hist-link: rgba(30, 30, 30, 0.65);
-    --hist-link-hover: #111;
+    --hist-ink: #f5f5f7;
+    --hist-ink-dim: rgba(245,245,247,0.55);
+    --hist-ink-faint: rgba(245,245,247,0.32);
+    --hist-glass-bg: linear-gradient(160deg, rgba(255,255,255,0.055), rgba(255,255,255,0.015));
+    --hist-glass-border: rgba(255,255,255,0.08);
+    --hist-violet: #a78bfa;
+    --hist-blue: #60a5fa;
+    --hist-pink: #f472b6;
+    --hist-radius: 20px;
   }
 
-  /* ── Keyframes ── */
-  @keyframes hist-fade-up {
-    from { opacity: 0; transform: translateY(20px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes hist-line-grow {
-    from { transform: scaleX(0); }
-    to   { transform: scaleX(1); }
-  }
-  @keyframes hist-gradient-shift {
-    0%   { background-position: 0%; }
-    100% { background-position: 300%; }
-  }
-  @keyframes hist-row-in {
-    from { opacity: 0; transform: translateX(-10px); }
-    to   { opacity: 1; transform: translateX(0); }
-  }
-
-  /* ── Page shell ── */
   .hist-page {
-    max-width: 1280px;
+    position: relative;
+    z-index: 1;
+    max-width: 1240px;
     margin: 0 auto;
-    padding: calc(var(--hist-nav-h) + 2.5rem) 1.5rem 4rem;
+    padding: calc(var(--hist-nav-h) + 3rem) 1.75rem 5rem;
     font-family: "Geist Mono", monospace;
+    color: var(--hist-ink);
+    min-height: 100vh;
   }
 
-  /* ── Stagger reveal ── */
-  .hist-reveal {
-    opacity: 0;
-    animation: hist-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  .hist-bg { position: fixed; inset: 0; z-index: -1; background: #06060a; overflow: hidden; }
+  .hist-bg::before {
+    content: ''; position: absolute; top: -18%; left: -10%;
+    width: 55vw; height: 55vw; max-width: 640px; max-height: 640px;
+    background: radial-gradient(circle, rgba(96,165,250,0.14), transparent 65%);
+    filter: blur(10px);
   }
-  .hist-reveal[data-delay="0"] { animation-delay: 0.05s; }
-  .hist-reveal[data-delay="1"] { animation-delay: 0.12s; }
-  .hist-reveal[data-delay="2"] { animation-delay: 0.19s; }
-  .hist-reveal[data-delay="3"] { animation-delay: 0.26s; }
+  .hist-bg::after {
+    content: ''; position: absolute; bottom: -22%; right: -10%;
+    width: 55vw; height: 55vw; max-width: 620px; max-height: 620px;
+    background: radial-gradient(circle, rgba(167,139,250,0.13), transparent 65%);
+    filter: blur(10px);
+  }
+  .hist-bg-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, transparent 40%, rgba(0,0,0,0.55) 100%); pointer-events: none; }
+
+  .gs-reveal { opacity: 0; }
 
   /* ── Header ── */
   .hist-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 1.25rem;
     margin-bottom: 2.5rem;
   }
-
+  .hist-eyebrow {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--hist-blue);
+    padding: 0.35rem 0.75rem;
+    border-radius: 999px;
+    background: rgba(96,165,250,0.1);
+    border: 1px solid rgba(96,165,250,0.22);
+    margin-bottom: 1rem;
+  }
   .hist-title {
-    font-size: clamp(1.4rem, 3vw, 2rem);
-    font-weight: 700;
+    font-family: "Fraunces", serif;
+    font-size: clamp(1.9rem, 4vw, 2.7rem);
+    font-weight: 500;
     letter-spacing: -0.02em;
-    color: #111;
-    line-height: 1;
-    position: relative;
-    display: inline-block;
+    color: var(--hist-ink);
+    line-height: 1.05;
+    margin: 0;
   }
-  .hist-title::after {
-    content: '';
-    position: absolute;
-    bottom: -6px; left: 0;
-    width: 100%; height: 2px;
-    background: linear-gradient(90deg, var(--hist-green), var(--hist-green-light), var(--hist-green));
-    background-size: 300%;
-    animation: hist-gradient-shift 2.4s linear infinite,
-               hist-line-grow 0.6s 0.15s cubic-bezier(0.22,1,0.36,1) both;
-    transform-origin: left;
-  }
-
-  /* ── Meta badge (page count) ── */
   .hist-meta {
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(0,0,0,0.35);
-    border: 1px solid var(--hist-border);
-    border-radius: 3px;
-    padding: 0.3rem 0.7rem;
+    color: var(--hist-ink-faint);
+    border: 1px solid var(--hist-glass-border);
+    border-radius: 999px;
+    padding: 0.5rem 1rem;
+    white-space: nowrap;
+    background: var(--hist-glass-bg);
+    backdrop-filter: blur(14px);
   }
 
-  /* ── Panel wrapper ── */
+  /* ── Panel ── */
   .hist-panel {
     position: relative;
-    border: 1px solid var(--hist-border);
-    border-radius: 4px;
-    background: #fff;
+    border-radius: var(--hist-radius);
+    background: var(--hist-glass-bg);
+    border: 1px solid var(--hist-glass-border);
+    backdrop-filter: blur(18px);
+    -webkit-backdrop-filter: blur(18px);
+    padding: 2rem;
+    margin-bottom: 1.1rem;
     overflow: hidden;
-    transition: border-color 0.22s ease, box-shadow 0.22s ease;
-    margin-bottom: 1.25rem;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 20px 50px -30px rgba(0,0,0,0.6);
+    transition: border-color 0.25s ease;
   }
-  .hist-panel:hover {
-    border-color: rgba(0,0,0,0.22);
-    box-shadow: 0 4px 24px rgba(0,0,0,0.05);
+  .hist-panel:hover { border-color: rgba(255,255,255,0.14); }
+
+  .hist-section-label {
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--hist-ink-faint);
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1.4rem;
   }
-  .hist-panel::before,
-  .hist-panel::after {
-    content: '';
-    position: absolute;
-    width: 8px; height: 8px;
-    opacity: 0;
-    transition: opacity 0.22s ease;
-    pointer-events: none;
-    z-index: 2;
-  }
-  .hist-panel::before {
-    top: -1px; left: -1px;
-    border-top: 1px solid rgba(22,163,74,0.65);
-    border-left: 1px solid rgba(22,163,74,0.65);
-  }
-  .hist-panel::after {
-    bottom: -1px; right: -1px;
-    border-bottom: 1px solid rgba(22,163,74,0.65);
-    border-right: 1px solid rgba(22,163,74,0.65);
-  }
-  .hist-panel:hover::before,
-  .hist-panel:hover::after { opacity: 1; }
+  .hist-section-label::after { content: ''; flex: 1; height: 1px; background: rgba(255,255,255,0.07); }
 
   /* ── Table ── */
+  .hist-table-wrap { overflow-x: auto; }
   .hist-table {
     width: 100%;
     border-collapse: collapse;
+    min-width: 620px;
   }
-
-  /* thead */
-  .hist-thead {
-    border-bottom: 1px solid var(--hist-border);
-    background: rgba(0,0,0,0.018);
-  }
-  .hist-th {
-    padding: 0.7rem 1.25rem;
-    text-align: left;
-    font-size: 0.65rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: rgba(0,0,0,0.38);
-    white-space: nowrap;
-  }
-  .hist-th:first-child { padding-left: 1.5rem; }
-  .hist-th:last-child  { padding-right: 1.5rem; }
-
-  /* column accent line in thead */
-  .hist-th-inner {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-  .hist-th-inner::before {
-    content: '';
-    display: inline-block;
-    width: 10px; height: 1px;
-    background: var(--hist-green);
-    opacity: 0.5;
-  }
-
-  /* tbody rows */
-  .hist-tr {
-    border-bottom: 1px solid rgba(0,0,0,0.055);
-    opacity: 0;
-    animation: hist-row-in 0.38s cubic-bezier(0.22,1,0.36,1) forwards;
-    transition: background 0.14s ease;
-  }
-  .hist-tr:last-child { border-bottom: none; }
-  .hist-tr:hover { background: rgba(0,0,0,0.022); }
-
-  /* left accent bar on row hover */
-  .hist-tr td:first-child {
-    position: relative;
-  }
-  .hist-tr td:first-child::before {
-    content: '';
-    position: absolute;
-    left: 0; top: 0; bottom: 0;
-    width: 2px;
-    background: linear-gradient(180deg, var(--hist-green), var(--hist-green-light));
-    transform: scaleY(0);
-    transform-origin: top;
-    transition: transform 0.22s cubic-bezier(0.22,1,0.36,1);
-  }
-  .hist-tr:hover td:first-child::before { transform: scaleY(1); }
-
-  .hist-td {
-    padding: 0.85rem 1.25rem;
-    font-size: 0.78rem;
-    color: #222;
-    white-space: nowrap;
-  }
-  .hist-td:first-child { padding-left: 1.5rem; }
-  .hist-td:last-child  { padding-right: 1.5rem; }
-
-  /* ── Rating badge ── */
-  .hist-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.3rem;
-    padding: 0.2rem 0.6rem;
-    border-radius: 3px;
-    font-size: 0.68rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    border: 1px solid;
-  }
-  .hist-badge.excellent { color: #15803d; background: rgba(22,163,74,0.08); border-color: rgba(22,163,74,0.25); }
-  .hist-badge.good      { color: #1d4ed8; background: rgba(59,130,246,0.08); border-color: rgba(59,130,246,0.25); }
-  .hist-badge.moderate  { color: #b45309; background: rgba(251,191,36,0.10); border-color: rgba(251,191,36,0.3); }
-  .hist-badge.poor      { color: #b91c1c; background: rgba(239,68,68,0.08);  border-color: rgba(239,68,68,0.25); }
-
-  /* ── Pagination row ── */
-  .hist-pagination {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .hist-page-info {
-    font-size: 0.72rem;
+  .hist-table th {
+    padding: 0 1rem 0.9rem;
+    font-size: 0.62rem;
     font-weight: 600;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
-    color: rgba(0,0,0,0.38);
+    color: var(--hist-ink-faint);
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
   }
-
-  /* ── Pagination buttons (same nav-link pattern) ── */
-  .hist-page-btn {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    font-family: "Geist Mono", monospace;
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.13em;
-    text-transform: uppercase;
-    padding: 0.45rem 1rem;
-    border: 1px solid var(--hist-border);
-    border-radius: 3px;
-    background: none;
-    cursor: pointer;
-    transition: border-color 0.18s ease, background 0.18s ease;
-    overflow: hidden;
+  .hist-table td {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    font-size: 0.82rem;
+    color: var(--hist-ink);
   }
-  .hist-page-btn:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-    pointer-events: none;
-  }
-  .hist-page-btn:not(:disabled):hover {
-    border-color: rgba(0,0,0,0.28);
-    background: var(--hist-box-bg);
-  }
-
-  .hist-page-btn .corner-tl,
-  .hist-page-btn .corner-br {
-    position: absolute;
-    width: 5px; height: 5px;
+  .hist-table tbody tr {
     opacity: 0;
-    transition: opacity 0.18s ease;
-    pointer-events: none;
+    animation: hist-row-in 0.4s cubic-bezier(0.22,1,0.36,1) forwards;
+    transition: background 0.18s ease;
   }
-  .hist-page-btn .corner-tl {
-    top: -1px; left: -1px;
-    border-top: 1px solid rgba(0,0,0,0.45);
-    border-left: 1px solid rgba(0,0,0,0.45);
+  .hist-table tbody tr:hover { background: rgba(255,255,255,0.025); }
+  .hist-table tbody tr:last-child td { border-bottom: none; }
+  @keyframes hist-row-in {
+    from { opacity: 0; transform: translateX(-8px); }
+    to   { opacity: 1; transform: translateX(0); }
   }
-  .hist-page-btn .corner-br {
-    bottom: -1px; right: -1px;
-    border-bottom: 1px solid rgba(0,0,0,0.45);
-    border-right: 1px solid rgba(0,0,0,0.45);
-  }
-  .hist-page-btn:not(:disabled):hover .corner-tl,
-  .hist-page-btn:not(:disabled):hover .corner-br { opacity: 1; }
 
-  .hist-page-btn .link-text {
-    display: block; overflow: hidden; height: 1em;
+  .hist-date { color: var(--hist-ink-dim); font-weight: 600; white-space: nowrap; }
+  .hist-category {
+    display: inline-block;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 0.32rem 0.7rem;
+    border-radius: 999px;
+    white-space: nowrap;
   }
-  .hist-page-btn .link-track {
-    display: flex;
-    flex-direction: column;
-    transition: transform 0.4s cubic-bezier(0.76,0,0.24,1);
+  .hist-value { font-weight: 700; color: var(--hist-ink); }
+  .hist-unit { font-size: 0.7rem; color: var(--hist-ink-faint); font-weight: 600; margin-left: 0.15rem; }
+  .hist-note {
+    font-size: 0.78rem;
+    color: var(--hist-ink-dim);
+    max-width: 260px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
-  .hist-page-btn:not(:disabled):hover .link-track { transform: translateY(-50%); }
-  .hist-page-btn .link-track span {
-    display: block; height: 1em; line-height: 1em;
-  }
-  .hist-page-btn .link-track span:first-child { color: var(--hist-link); }
-  .hist-page-btn .link-track span:last-child  { color: var(--hist-link-hover); }
 
   /* ── Empty state ── */
-  .hist-empty {
-    border: 1px dashed rgba(0,0,0,0.14);
-    border-radius: 4px;
-    padding: 5rem 2rem;
-    text-align: center;
-    animation: hist-fade-up 0.5s ease both;
-  }
+  .hist-empty { text-align: center; padding: 4.5rem 1.5rem; }
   .hist-empty-icon {
-    font-size: 2.5rem;
-    display: block;
-    margin-bottom: 1rem;
-    animation: hist-fade-up 0.5s 0.1s ease both;
+    width: 72px; height: 72px;
+    margin: 0 auto 1.5rem;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle, rgba(96,165,250,0.16), transparent 70%);
+    color: var(--hist-blue);
   }
-  .hist-empty-title {
-    font-size: 0.85rem;
-    font-weight: 700;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    color: rgba(0,0,0,0.45);
-    animation: hist-fade-up 0.5s 0.2s ease both;
-  }
+  .hist-empty-title { font-family: "Fraunces", serif; font-size: 1.4rem; font-weight: 500; color: var(--hist-ink); margin: 0 0 0.5rem; }
+  .hist-empty-text { font-size: 0.85rem; color: var(--hist-ink-dim); margin: 0; }
 
-  /* ── Responsive ── */
-  @media (max-width: 700px) {
-    .hist-th:nth-child(3),
-    .hist-td:nth-child(3),
-    .hist-th:nth-child(4),
-    .hist-td:nth-child(4) { display: none; }
+  /* ── Error ── */
+  .hist-error {
+    border: 1px solid rgba(244,114,182,0.28);
+    border-radius: 16px;
+    background: rgba(244,114,182,0.07);
+    padding: 1.4rem;
+    font-size: 0.78rem;
+    color: #fbcfe8;
+    letter-spacing: 0.02em;
+  }
+  .hist-retry {
+    display: inline-flex; align-items: center; gap: 0.4rem;
+    background: none; border: 1px solid rgba(244,114,182,0.35); border-radius: 999px;
+    font-family: "Geist Mono", monospace; font-size: 0.68rem; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase;
+    color: #f9a8d4; cursor: pointer; padding: 0.45rem 1rem; margin-top: 0.9rem;
+    transition: background 0.15s ease;
+  }
+  .hist-retry:hover { background: rgba(244,114,182,0.1); }
+
+  /* ── Loading ── */
+  .hist-loading { display: flex; justify-content: center; align-items: center; min-height: 200px; }
+
+  /* ── Pagination ── */
+  .hist-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.4rem;
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255,255,255,0.07);
+  }
+  .hist-page-btn {
+    display: flex; align-items: center; justify-content: center;
+    min-width: 34px; height: 34px;
+    padding: 0 0.6rem;
+    border: 1px solid var(--hist-glass-border);
+    border-radius: 999px;
+    background: rgba(255,255,255,0.02);
+    font-family: "Geist Mono", monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    color: var(--hist-ink-dim);
+    cursor: pointer;
+    transition: border-color 0.18s ease, color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  }
+  .hist-page-btn:hover:not(:disabled) {
+    border-color: rgba(167,139,250,0.4);
+    color: var(--hist-ink);
+    background: rgba(167,139,250,0.08);
+    transform: translateY(-1px);
+  }
+  .hist-page-btn.active {
+    border-color: transparent;
+    background: linear-gradient(135deg, var(--hist-violet), var(--hist-blue));
+    color: #08080b;
+  }
+  .hist-page-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  @media (max-width: 768px) {
+    .hist-page { padding: calc(var(--hist-nav-h) + 1.5rem) 1rem 3rem; }
+    .hist-panel { padding: 1.5rem 1.25rem; }
+    .hist-note { display: none; }
   }
 `;
 
-/* ─── helpers ─────────────────────────────────────────────────────────────── */
-const ratingClass = (r) => {
-  if (r === 'Excellent') return 'excellent';
-  if (r === 'Good')      return 'good';
-  if (r === 'Moderate')  return 'moderate';
-  return 'poor';
+/* ─── Category → accent map (mirrors ScoreCard's palette) ────────────────── */
+const CATEGORY_STYLE = {
+  transport: { label: 'Transport', bg: 'rgba(96,165,250,0.14)',  color: '#93c5fd' },
+  energy:    { label: 'Energy',    bg: 'rgba(251,191,36,0.14)',  color: '#fde68a' },
+  diet:      { label: 'Diet',      bg: 'rgba(167,139,250,0.14)', color: '#c4b5fd' },
+  water:     { label: 'Water',     bg: 'rgba(34,211,238,0.14)',  color: '#67e8f9' },
+  waste:     { label: 'Waste',     bg: 'rgba(244,114,182,0.14)', color: '#f9a8d4' },
+  shopping:  { label: 'Shopping',  bg: 'rgba(244,114,182,0.14)', color: '#f9a8d4' },
+  other:     { label: 'Other',     bg: 'rgba(245,245,247,0.08)', color: 'rgba(245,245,247,0.6)' },
 };
 
-const PageBtn = ({ label, onClick, disabled }) => (
-  <button className="hist-page-btn" onClick={onClick} disabled={disabled}>
-    <div className="corner-tl" />
-    <div className="link-text">
-      <div className="link-track">
-        <span>{label}</span>
-        <span>{label}</span>
-      </div>
-    </div>
-    <div className="corner-br" />
-  </button>
-);
-
-/* ─── Component ───────────────────────────────────────────────────────────── */
 const History = () => {
-  const [data, setData]       = useState(null);
+  const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [page, setPage]       = useState(1);
+  const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageRef = useRef(null);
 
-  useEffect(() => { fetchHistory(); }, [page]);
-
-  const fetchHistory = async () => {
+  const loadHistory = async (p = 1) => {
     setLoading(true);
+    setError('');
     try {
-      const response = await getHistory(page, 10);
-      setData(response.data);
-    } catch (error) {
-      console.error('Error fetching history:', error);
+      const response = await getHistory(p, 20);
+      setData(response.data?.data || []);
+      setTotalPages(response.data?.pages || 1);
+      setPage(p);
+    } catch (err) {
+      setError('Failed to load history');
+      console.error(err);
     } finally {
       setLoading(false);
     }
   };
 
-  if (loading) return <LoadingSpinner />;
+  useEffect(() => {
+    loadHistory(1);
+  }, []);
 
-  const totalPages = Math.ceil((data?.total || 0) / (data?.page_size || 10));
+  /* GSAP entrance — presentation only, runs after data/loading settles */
+  useEffect(() => {
+    if (loading || !pageRef.current) return;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        pageRef.current.querySelectorAll('.gs-reveal'),
+        { opacity: 0, y: 24 },
+        { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out', stagger: 0.08, clearProps: 'transform' }
+      );
+    }, pageRef);
+    return () => ctx.revert();
+  }, [loading, data]);
 
-  const COLS = [
-    { label: 'Date' },
-    { label: 'Carbon (kg CO₂)' },
-    { label: 'Water (L)' },
-    { label: 'Energy (kWh)' },
-    { label: 'Waste (kg)' },
-    { label: 'Rating' },
-  ];
+  const formatDate = (dateStr) => {
+    try {
+      return new Date(dateStr).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getCategoryTag = (category) => CATEGORY_STYLE[category] || CATEGORY_STYLE.other;
 
   return (
     <>
       <style>{styles}</style>
+      <div className="hist-bg"><div className="hist-bg-vignette" /></div>
 
-      <div className="hist-page">
+      <div className="hist-page" ref={pageRef}>
 
-        {/* ── Header ── */}
-        <div className="hist-header hist-reveal" data-delay="0">
-          <h1 className="hist-title">Impact History</h1>
-          {data?.total > 0 && (
-            <span className="hist-meta">{data.total} records</span>
-          )}
+        {/* Header */}
+        <div className="hist-header gs-reveal">
+          <div>
+            <span className="hist-eyebrow"><HistoryIcon size={12} /> Your Timeline</span>
+            <h1 className="hist-title">Impact History</h1>
+          </div>
+          <div className="hist-meta">
+            {loading ? '···' : `${data.length} ${data.length === 1 ? 'entry' : 'entries'}`}
+          </div>
         </div>
 
-        {data?.data?.length > 0 ? (
-          <>
-            {/* ── Table panel ── */}
-            <div className="hist-panel hist-reveal" data-delay="1">
+        {/* Error */}
+        {error && !loading && (
+          <div className="hist-panel hist-error gs-reveal">
+            {error}
+            <br />
+            <button className="hist-retry" onClick={() => loadHistory(page)}>
+              <RotateCcw size={12} /> Retry
+            </button>
+          </div>
+        )}
+
+        {/* Loading */}
+        {loading && (
+          <div className="hist-panel hist-loading">
+            <LoadingSpinner />
+          </div>
+        )}
+
+        {/* Data */}
+        {!loading && !error && data.length > 0 && (
+          <div className="hist-panel gs-reveal">
+            <p className="hist-section-label">Recent Entries</p>
+            <div className="hist-table-wrap">
               <table className="hist-table">
-                <thead className="hist-thead">
+                <thead>
                   <tr>
-                    {COLS.map((col) => (
-                      <th key={col.label} className="hist-th">
-                        <div className="hist-th-inner">{col.label}</div>
-                      </th>
-                    ))}
+                    <th>Date &amp; Time</th>
+                    <th>Category</th>
+                    <th>Carbon</th>
+                    <th>Water</th>
+                    <th>Energy</th>
+                    <th>Notes</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {data.data.map((log, i) => (
-                    <tr
-                      key={log.id}
-                      className="hist-tr"
-                      style={{ animationDelay: `${0.15 + i * 0.045}s` }}
-                    >
-                      <td className="hist-td">
-                        {new Date(log.created_at).toLocaleString(undefined, {
-                          year: 'numeric', month: 'short', day: 'numeric',
-                          hour: '2-digit', minute: '2-digit',
-                        })}
-                      </td>
-                      <td className="hist-td">{log.carbon_score}</td>
-                      <td className="hist-td">{log.water_score}</td>
-                      <td className="hist-td">{log.energy_score}</td>
-                      <td className="hist-td">{log.waste_score}</td>
-                      <td className="hist-td">
-                        <span className={`hist-badge ${ratingClass(log.overall_rating)}`}>
-                          {log.overall_rating}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                  {data.map((entry, idx) => {
+                    const cat = getCategoryTag(entry.category || 'other');
+                    return (
+                      <tr key={entry.id || idx} style={{ animationDelay: `${0.08 + idx * 0.04}s` }}>
+                        <td className="hist-date">{formatDate(entry.created_at)}</td>
+                        <td>
+                          <span className="hist-category" style={{ background: cat.bg, color: cat.color }}>
+                            {cat.label}
+                          </span>
+                        </td>
+                        <td>
+                          <span className="hist-value">{(entry.carbon_score || 0).toFixed(1)}</span>
+                          <span className="hist-unit">kg</span>
+                        </td>
+                        <td>
+                          <span className="hist-value">{(entry.water_score || 0).toFixed(0)}</span>
+                          <span className="hist-unit">L</span>
+                        </td>
+                        <td>
+                          <span className="hist-value">{(entry.energy_score || 0).toFixed(1)}</span>
+                          <span className="hist-unit">kWh</span>
+                        </td>
+                        <td className="hist-note">{entry.notes || '—'}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
 
-            {/* ── Pagination ── */}
-            <div className="hist-pagination hist-reveal" data-delay="2">
-              <PageBtn
-                label="← Previous"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-              />
-              <span className="hist-page-info">
-                Page {page} / {totalPages}
-              </span>
-              <PageBtn
-                label="Next →"
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                disabled={page === totalPages}
-              />
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="hist-pagination">
+                <button
+                  className="hist-page-btn"
+                  onClick={() => loadHistory(page - 1)}
+                  disabled={page === 1}
+                  aria-label="Previous page"
+                >
+                  <ChevronLeft size={14} />
+                </button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <button
+                    key={p}
+                    className={`hist-page-btn ${p === page ? 'active' : ''}`}
+                    onClick={() => loadHistory(p)}
+                  >
+                    {p}
+                  </button>
+                ))}
+                <button
+                  className="hist-page-btn"
+                  onClick={() => loadHistory(page + 1)}
+                  disabled={page === totalPages}
+                  aria-label="Next page"
+                >
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Empty state */}
+        {!loading && !error && data.length === 0 && (
+          <div className="hist-panel hist-empty gs-reveal">
+            <div className="hist-empty-icon">
+              <Inbox size={30} strokeWidth={1.6} />
             </div>
-          </>
-        ) : (
-          /* ── Empty state ── */
-          <div className="hist-empty">
-            <span className="hist-empty-icon">📭</span>
-            <p className="hist-empty-title">No history available</p>
+            <p className="hist-empty-title">No impact records yet</p>
+            <p className="hist-empty-text">Start tracking your carbon footprint today.</p>
           </div>
         )}
       </div>

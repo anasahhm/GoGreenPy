@@ -3,34 +3,34 @@ import React from 'react';
 import { TrendingUp, TrendingDown, Award } from 'lucide-react';
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap');
   .rh-wrap { font-family:"Geist Mono",monospace; }
   .rh-item {
     display:flex; align-items:flex-start; gap:0.9rem;
-    padding:0.9rem 0; border-bottom:1px solid rgba(0,0,0,0.055);
+    padding:1rem 0; border-top:1px solid rgba(255,255,255,0.06);
   }
-  .rh-item:last-child { border-bottom:none; }
+  .rh-item:first-child { border-top:none; }
   .rh-dot {
-    width:28px; height:28px; border-radius:50%; flex-shrink:0;
+    width:30px; height:30px; border-radius:50%; flex-shrink:0;
     display:flex; align-items:center; justify-content:center; margin-top:1px;
   }
-  .rh-dot.pos { background:rgba(22,163,74,0.1); border:1px solid rgba(22,163,74,0.22); }
-  .rh-dot.neg { background:rgba(220,38,38,0.07); border:1px solid rgba(220,38,38,0.18); }
+  .rh-dot.pos { background:rgba(167,139,250,0.12); border:1px solid rgba(167,139,250,0.3); }
+  .rh-dot.neg { background:rgba(244,114,182,0.1); border:1px solid rgba(244,114,182,0.25); }
   .rh-body  { flex:1; min-width:0; }
-  .rh-reason{ font-size:0.75rem; font-weight:600; color:#111; letter-spacing:-0.01em; }
-  .rh-meta  { font-size:0.62rem; color:rgba(30,30,30,0.38); margin-top:2px; letter-spacing:0.03em; }
+  .rh-reason{ font-size:0.8rem; font-weight:600; color:#f5f5f7; letter-spacing:-0.01em; }
+  .rh-meta  { font-size:0.65rem; color:rgba(245,245,247,0.4); margin-top:3px; letter-spacing:0.03em; }
   .rh-tag   {
-    display:inline-flex; align-items:center; gap:0.25rem; margin-top:0.3rem;
-    font-size:0.58rem; font-weight:600; letter-spacing:0.07em; text-transform:uppercase;
-    color:rgba(22,163,74,0.75); background:rgba(22,163,74,0.08);
-    border:1px solid rgba(22,163,74,0.18); border-radius:2px; padding:0.15rem 0.4rem;
+    display:inline-flex; align-items:center; gap:0.3rem; margin-top:0.4rem;
+    font-size:0.6rem; font-weight:600; letter-spacing:0.07em; text-transform:uppercase;
+    color:#c4b5fd; background:rgba(167,139,250,0.1);
+    border:1px solid rgba(167,139,250,0.25); border-radius:999px; padding:0.2rem 0.55rem;
   }
   .rh-right { text-align:right; flex-shrink:0; }
-  .rh-delta { font-size:0.78rem; font-weight:700; letter-spacing:-0.01em; }
-  .rh-delta.pos { color:#16a34a; }
-  .rh-delta.neg { color:#dc2626; }
-  .rh-after { font-size:0.6rem; color:rgba(30,30,30,0.32); margin-top:2px; letter-spacing:0.03em; }
-  .rh-empty { text-align:center; font-size:0.75rem; color:rgba(30,30,30,0.38); padding:2.5rem 0; letter-spacing:0.05em; font-family:"Geist Mono",monospace; }
+  .rh-delta { font-size:0.85rem; font-weight:700; letter-spacing:-0.01em; }
+  .rh-delta.pos { color:#c4b5fd; }
+  .rh-delta.neg { color:#f9a8d4; }
+  .rh-after { font-size:0.62rem; color:rgba(245,245,247,0.35); margin-top:3px; letter-spacing:0.03em; }
+  .rh-empty { text-align:center; font-size:0.8rem; color:rgba(245,245,247,0.4); padding:3rem 0; letter-spacing:0.05em; font-family:"Geist Mono",monospace; }
 `;
 
 function fmt(ds) {
@@ -51,8 +51,8 @@ export default function RewardHistory({ transactions = [] }) {
                 <div className="rh-item" key={t.id || i}>
                   <div className={`rh-dot ${pos ? 'pos' : 'neg'}`}>
                     {pos
-                      ? <TrendingUp size={13} color="#16a34a" strokeWidth={2.2} />
-                      : <TrendingDown size={13} color="#dc2626" strokeWidth={2.2} />}
+                      ? <TrendingUp size={13} color="#c4b5fd" strokeWidth={2.2} />
+                      : <TrendingDown size={13} color="#f9a8d4" strokeWidth={2.2} />}
                   </div>
                   <div className="rh-body">
                     <div className="rh-reason">{t.reason}</div>

@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 
 /*
-  WeatherWidget — compact horizontal inline bar, designed to sit in a header row.
+  WeatherWidget — compact horizontal inline bar, designed to sit in a header row
+  inside a dark glass pill (e.g. Dashboard's `.dash-weather-wrap`).
   Props:
     apiKey — VITE_OWM_API_KEY
   Usage:
@@ -16,85 +17,73 @@ const styles = `
     display: inline-flex;
     align-items: center;
     gap: 0;
-    border: 1px solid rgba(0,0,0,0.13);
-    border-radius: 4px;
-    background: #fff;
+    background: none;
     overflow: hidden;
-    height: 36px;
-    transition: border-color 0.18s ease, box-shadow 0.18s ease;
+    height: 32px;
     white-space: nowrap;
   }
-  .ww-bar:hover {
-    border-color: rgba(0,0,0,0.22);
-    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
-  }
 
-  /* location pill — dark left cap */
+  /* location cap — soft violet chip, sits on the glass pill itself */
   .ww-bar-loc {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
-    background: #0e0e0e;
-    padding: 0 0.75rem;
+    gap: 0.4rem;
+    padding: 0 0.7rem 0 0.15rem;
     height: 100%;
     font-size: 0.6rem;
     font-weight: 700;
     letter-spacing: 0.13em;
     text-transform: uppercase;
-    color: rgba(255,255,255,0.5);
+    color: rgba(245,245,247,0.55);
   }
   .ww-bar-dot {
     width: 5px;
     height: 5px;
     border-radius: 50%;
-    background: #22c55e;
+    background: #a78bfa;
+    box-shadow: 0 0 6px rgba(167,139,250,0.9);
     flex-shrink: 0;
   }
   .ww-bar-city {
-    color: rgba(255,255,255,0.75);
+    color: rgba(245,245,247,0.8);
     max-width: 80px;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  /* divider */
-  .ww-bar-sep {
-    width: 1px;
-    height: 100%;
-    background: rgba(0,0,0,0.1);
-    flex-shrink: 0;
-  }
-
   /* temp */
   .ww-bar-temp {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: 1px;
     padding: 0 0.75rem;
     height: 100%;
-    align-items: center;
   }
   .ww-bar-temp-val {
-    font-size: 0.92rem;
+    font-size: 0.94rem;
     font-weight: 700;
-    color: #111;
     letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #fff, #a78bfa 130%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
   .ww-bar-temp-unit {
     font-size: 0.65rem;
-    color: rgba(0,0,0,0.35);
+    color: rgba(245,245,247,0.4);
     font-weight: 600;
   }
 
   /* condition */
   .ww-bar-cond {
     padding: 0 0.75rem 0 0;
-    font-size: 0.65rem;
-    color: rgba(0,0,0,0.42);
+    font-size: 0.66rem;
+    color: rgba(245,245,247,0.45);
     text-transform: capitalize;
     max-width: 100px;
     overflow: hidden;
     text-overflow: ellipsis;
+    border-left: 1px solid rgba(255,255,255,0.08);
   }
 
   /* metrics — each chip */
@@ -103,15 +92,15 @@ const styles = `
     align-items: center;
     gap: 0;
     height: 100%;
-    border-left: 1px solid rgba(0,0,0,0.08);
+    border-left: 1px solid rgba(255,255,255,0.08);
   }
   .ww-bar-chip {
     display: flex;
     align-items: center;
-    gap: 0.3rem;
+    gap: 0.32rem;
     padding: 0 0.65rem;
     height: 100%;
-    border-right: 1px solid rgba(0,0,0,0.06);
+    border-right: 1px solid rgba(255,255,255,0.06);
     font-size: 0.62rem;
   }
   .ww-bar-chip:last-child { border-right: none; }
@@ -119,49 +108,54 @@ const styles = `
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: rgba(0,0,0,0.3);
+    color: rgba(245,245,247,0.32);
   }
   .ww-bar-chip-val {
     font-weight: 700;
-    color: #111;
+    color: rgba(245,245,247,0.85);
   }
   .ww-bar-badge {
     font-size: 0.55rem;
     font-weight: 700;
     letter-spacing: 0.07em;
     text-transform: uppercase;
-    padding: 0.1rem 0.35rem;
-    border-radius: 2px;
+    padding: 0.1rem 0.4rem;
+    border-radius: 999px;
   }
 
-  /* AQI badge colours */
-  .aqi-good  { background: rgba(22,163,74,0.12);  color: #15803d; }
-  .aqi-fair  { background: rgba(234,179,8,0.15);  color: #854d0e; }
-  .aqi-mod   { background: rgba(249,115,22,0.15); color: #9a3412; }
-  .aqi-poor  { background: rgba(185,28,28,0.12);  color: #991b1b; }
-  .aqi-vbad  { background: rgba(109,40,217,0.12); color: #5b21b6; }
+  /* AQI badge colours — tuned for dark glass */
+  .aqi-good  { background: rgba(34,197,94,0.16);   color: #86efac; }
+  .aqi-fair  { background: rgba(251,191,36,0.16);  color: #fde68a; }
+  .aqi-mod   { background: rgba(249,115,22,0.18);  color: #fdba74; }
+  .aqi-poor  { background: rgba(244,63,94,0.18);   color: #fda4af; }
+  .aqi-vbad  { background: rgba(167,139,250,0.2);  color: #d8b4fe; }
 
-  /* UV badge colours */
-  .uv-low    { background: rgba(22,163,74,0.12);  color: #15803d; }
-  .uv-mod    { background: rgba(234,179,8,0.15);  color: #854d0e; }
-  .uv-high   { background: rgba(249,115,22,0.15); color: #9a3412; }
-  .uv-vhigh  { background: rgba(185,28,28,0.12);  color: #991b1b; }
+  /* UV badge colours — tuned for dark glass */
+  .uv-low    { background: rgba(34,197,94,0.16);   color: #86efac; }
+  .uv-mod    { background: rgba(251,191,36,0.16);  color: #fde68a; }
+  .uv-high   { background: rgba(249,115,22,0.18);  color: #fdba74; }
+  .uv-vhigh  { background: rgba(244,63,94,0.18);   color: #fda4af; }
 
   /* skeleton / error states */
   .ww-bar-skeleton {
-    padding: 0 1rem;
+    padding: 0 0.9rem;
     font-size: 0.65rem;
-    color: rgba(0,0,0,0.3);
+    color: rgba(245,245,247,0.35);
     letter-spacing: 0.08em;
     height: 100%;
     display: flex;
     align-items: center;
+    gap: 0.4rem;
+  }
+  .ww-bar-skeleton-dot {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: #a78bfa;
+    animation: ww-blink 1.4s ease infinite;
   }
   @keyframes ww-blink {
-    0%, 100% { opacity: 0.35; }
-    50%       { opacity: 0.9;  }
+    0%, 100% { opacity: 0.3; transform: scale(0.85); }
+    50%       { opacity: 1;   transform: scale(1); }
   }
-  .ww-bar-skeleton { animation: ww-blink 1.4s ease infinite; }
 
   /* hide chips on narrow screens */
   @media (max-width: 768px) {
@@ -253,11 +247,16 @@ const WeatherWidget = ({ apiKey }) => {
       <style>{styles}</style>
       <div className="ww-bar">
         {/* Loading */}
-        {loading && <span className="ww-bar-skeleton">fetching weather…</span>}
+        {loading && (
+          <span className="ww-bar-skeleton">
+            <span className="ww-bar-skeleton-dot" />
+            fetching weather…
+          </span>
+        )}
 
         {/* Error */}
         {!loading && error && (
-          <span className="ww-bar-skeleton" style={{ animation: 'none', color: '#b91c1c' }}>
+          <span className="ww-bar-skeleton" style={{ color: 'rgba(253,164,175,0.75)' }}>
             {error}
           </span>
         )}
@@ -265,7 +264,7 @@ const WeatherWidget = ({ apiKey }) => {
         {/* Data */}
         {!loading && weather && (
           <>
-            {/* Location cap */}
+            {/* Location */}
             <div className="ww-bar-loc">
               <span className="ww-bar-dot" />
               <span className="ww-bar-city">{weather.cityName}</span>

@@ -17,126 +17,101 @@ const CATEGORY_ICONS = {
 };
 
 const STATUS_META = {
-  AVAILABLE: { label: 'Available',  border: 'rgba(22,163,74,0.22)', bg: '#fff',                  glow: false },
-  LOCKED:    { label: 'Locked',     border: 'rgba(0,0,0,0.08)',     bg: 'rgba(0,0,0,0.015)',     glow: false },
-  RESERVED:  { label: 'Yours',      border: 'rgba(22,163,74,0.4)',  bg: 'rgba(22,163,74,0.025)', glow: true  },
-  REDEEMED:  { label: 'Redeemed',   border: 'rgba(0,0,0,0.1)',      bg: 'rgba(0,0,0,0.02)',      glow: false },
+  AVAILABLE: { label: 'Available', border: 'rgba(96,165,250,0.28)',  bg: 'linear-gradient(160deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015))', glow: false },
+  LOCKED:    { label: 'Locked',    border: 'rgba(255,255,255,0.08)', bg: 'rgba(255,255,255,0.02)', glow: false },
+  RESERVED:  { label: 'Yours',     border: 'rgba(167,139,250,0.45)', bg: 'linear-gradient(160deg, rgba(167,139,250,0.1), rgba(255,255,255,0.02))', glow: true  },
+  REDEEMED:  { label: 'Redeemed',  border: 'rgba(255,255,255,0.1)',  bg: 'rgba(255,255,255,0.015)', glow: false },
 };
 
 const styles = `
-  @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap');
 
-  @keyframes cpn-in    { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-  @keyframes cpn-glow  { 0%,100% { box-shadow: 0 0 0 0 rgba(22,163,74,0); } 60% { box-shadow: 0 0 18px 2px rgba(22,163,74,0.12); } }
+  @keyframes cpn-in    { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes cpn-glow  { 0%,100% { box-shadow: 0 0 0 0 rgba(167,139,250,0); } 60% { box-shadow: 0 0 22px 3px rgba(167,139,250,0.16); } }
   @keyframes cpn-spin  { to { transform: rotate(360deg); } }
 
-  .cpn-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(282px, 1fr));
-    gap: 1rem;
-  }
+  .cpn-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(282px, 1fr)); gap: 1.1rem; }
   .cpn-card {
     position: relative;
-    border-radius: 4px;
+    border-radius: 16px;
     padding: 1.5rem;
     font-family: "Geist Mono", monospace;
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
     transition: border-color 0.22s ease, box-shadow 0.22s ease, transform 0.22s ease;
-    animation: cpn-in 0.4s cubic-bezier(0.22,1,0.36,1) both;
+    animation: cpn-in 0.45s cubic-bezier(0.22,1,0.36,1) both;
     overflow: hidden;
   }
-  .cpn-card::before {
-    content: '';
-    position: absolute; top:0; left:0;
-    width:100%; height:1.5px;
-    background: linear-gradient(90deg, transparent, rgba(22,163,74,0.45), transparent);
-    opacity: 0;
-    transition: opacity 0.22s;
-  }
-  .cpn-card:hover { transform: translateY(-1px); }
-  .cpn-card:hover::before { opacity: 1; }
-  .cpn-card.status-locked { opacity: 0.52; }
-  .cpn-card.status-glow { animation: cpn-in 0.4s both, cpn-glow 2s 0.5s ease-in-out; }
+  .cpn-card:hover { transform: translateY(-3px); }
+  .cpn-card.status-locked { opacity: 0.5; }
+  .cpn-card.status-glow { animation: cpn-in 0.45s both, cpn-glow 2.2s 0.5s ease-in-out; }
 
-  .cpn-header { display:flex; align-items:flex-start; gap:0.75rem; margin-bottom:0.85rem; }
+  .cpn-header { display:flex; align-items:flex-start; gap:0.75rem; margin-bottom:0.9rem; }
   .cpn-icon {
-    width:36px; height:36px; border-radius:3px;
+    width:38px; height:38px; border-radius:11px;
     display:flex; align-items:center; justify-content:center;
     flex-shrink:0;
-    border:1px solid rgba(0,0,0,0.09);
-    background:rgba(0,0,0,0.025);
+    border:1px solid rgba(255,255,255,0.1);
+    background:rgba(255,255,255,0.03);
     transition:border-color 0.18s;
   }
-  .cpn-icon.owned { border-color:rgba(22,163,74,0.3); background:rgba(22,163,74,0.05); }
-  .cpn-title { font-size:0.82rem; font-weight:700; color:#111; letter-spacing:-0.01em; line-height:1.2; }
-  .cpn-cat   { font-size:0.6rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:rgba(30,30,30,0.38); margin-top:2px; }
+  .cpn-icon.owned { border-color:rgba(167,139,250,0.35); background:rgba(167,139,250,0.1); }
+  .cpn-title { font-size:0.86rem; font-weight:600; color:#f5f5f7; letter-spacing:-0.01em; line-height:1.25; }
+  .cpn-cat   { font-size:0.62rem; font-weight:600; letter-spacing:0.1em; text-transform:uppercase; color:rgba(245,245,247,0.4); margin-top:3px; }
 
   .cpn-badge {
-    display:inline-block;
-    padding:0.18rem 0.5rem;
-    border-radius:2px;
-    font-size:0.65rem; font-weight:700; letter-spacing:0.08em;
-    background:rgba(22,163,74,0.09);
-    border:1px solid rgba(22,163,74,0.22);
-    color:#16a34a;
-    margin-bottom:0.7rem;
+    display:inline-block; padding:0.22rem 0.6rem; border-radius:999px;
+    font-size:0.66rem; font-weight:700; letter-spacing:0.06em;
+    background:rgba(96,165,250,0.12); border:1px solid rgba(96,165,250,0.28);
+    color:#93c5fd; margin-bottom:0.8rem;
   }
-  .cpn-desc {
-    font-size:0.72rem; color:rgba(30,30,30,0.58);
-    line-height:1.55; margin-bottom:0.9rem;
-  }
+  .cpn-desc { font-size:0.75rem; color:rgba(245,245,247,0.55); line-height:1.6; margin-bottom:1rem; }
   .cpn-footer {
     display:flex; justify-content:space-between; align-items:center;
-    font-size:0.6rem; color:rgba(30,30,30,0.38);
+    font-size:0.63rem; color:rgba(245,245,247,0.4);
     letter-spacing:0.04em; flex-wrap:wrap; gap:0.3rem;
   }
-  .cpn-pts { font-weight:600; }
+  .cpn-pts { font-weight:600; color:rgba(245,245,247,0.6); }
 
-  /* code row */
   .cpn-code-row {
-    display:flex; align-items:center; gap:0.4rem;
-    margin-top:0.85rem; padding:0.5rem 0.7rem;
-    background:rgba(0,0,0,0.028); border:1px solid rgba(0,0,0,0.08); border-radius:2px;
+    display:flex; align-items:center; gap:0.5rem;
+    margin-top:0.9rem; padding:0.6rem 0.8rem;
+    background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.09); border-radius:10px;
   }
-  .cpn-code { flex:1; font-size:0.72rem; font-weight:700; letter-spacing:0.12em; color:#16a34a; }
-  .cpn-copy { background:none; border:none; cursor:pointer; padding:2px; color:rgba(30,30,30,0.32); transition:color 0.15s; }
-  .cpn-copy:hover { color:#16a34a; }
+  .cpn-code { flex:1; font-size:0.74rem; font-weight:700; letter-spacing:0.12em; color:#c4b5fd; }
+  .cpn-copy { background:none; border:none; cursor:pointer; padding:2px; color:rgba(245,245,247,0.4); transition:color 0.15s; }
+  .cpn-copy:hover { color:#c4b5fd; }
 
-  /* action buttons */
   .cpn-btn {
-    width:100%; margin-top:0.7rem;
-    padding:0.52rem; border-radius:2px;
+    width:100%; margin-top:0.8rem;
+    padding:0.65rem; border-radius:999px;
     font-family:"Geist Mono",monospace;
-    font-size:0.68rem; font-weight:700; letter-spacing:0.1em; text-transform:uppercase;
+    font-size:0.7rem; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;
     cursor:pointer; display:flex; align-items:center; justify-content:center; gap:0.4rem;
-    transition:background 0.18s, border-color 0.18s, opacity 0.18s;
+    transition:background 0.18s, border-color 0.18s, opacity 0.18s, transform 0.2s;
   }
   .cpn-btn:disabled { opacity:0.45; cursor:not-allowed; }
   .cpn-btn.claim {
-    background:none; border:1px solid rgba(22,163,74,0.35); color:#16a34a;
+    background:linear-gradient(135deg, rgba(167,139,250,0.9), rgba(96,165,250,0.9)); border:none; color:#08080b;
   }
-  .cpn-btn.claim:not(:disabled):hover { background:rgba(22,163,74,0.07); border-color:rgba(22,163,74,0.6); }
-  .cpn-btn.redeem {
-    background:none; border:1px solid rgba(0,0,0,0.12); color:rgba(30,30,30,0.6);
-  }
-  .cpn-btn.redeem:not(:disabled):hover { background:rgba(0,0,0,0.03); border-color:rgba(0,0,0,0.22); }
+  .cpn-btn.claim:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 10px 24px -10px rgba(167,139,250,0.55); }
+  .cpn-btn.redeem { background:none; border:1px solid rgba(255,255,255,0.14); color:rgba(245,245,247,0.7); }
+  .cpn-btn.redeem:not(:disabled):hover { background:rgba(255,255,255,0.04); border-color:rgba(255,255,255,0.26); }
 
   .cpn-spinner { animation: cpn-spin 0.8s linear infinite; }
 
-  /* lock / status rows */
   .cpn-lock-row {
-    display:flex; align-items:center; gap:0.35rem;
-    margin-top:0.75rem; font-size:0.65rem; color:rgba(30,30,30,0.38); letter-spacing:0.05em;
+    display:flex; align-items:center; gap:0.4rem;
+    margin-top:0.85rem; font-size:0.68rem; color:rgba(245,245,247,0.4); letter-spacing:0.05em;
   }
   .cpn-redeemed-row {
-    display:flex; align-items:center; gap:0.3rem;
-    margin-top:0.65rem; font-size:0.63rem; font-weight:600;
+    display:flex; align-items:center; gap:0.35rem;
+    margin-top:0.75rem; font-size:0.64rem; font-weight:600;
     letter-spacing:0.08em; text-transform:uppercase;
-    color:rgba(30,30,30,0.35);
-    padding:0.25rem 0.5rem; border:1px solid rgba(0,0,0,0.08); border-radius:2px; width:fit-content;
+    color:rgba(245,245,247,0.4);
+    padding:0.3rem 0.6rem; border:1px solid rgba(255,255,255,0.09); border-radius:999px; width:fit-content;
   }
-  .cpn-err {
-    margin-top:0.5rem; font-size:0.65rem; color:#dc2626; letter-spacing:0.03em; line-height:1.4;
-  }
+  .cpn-err { margin-top:0.55rem; font-size:0.68rem; color:#f9a8d4; letter-spacing:0.03em; line-height:1.4; }
 `;
 
 function CouponCard({ coupon, totalPoints, onUpdate }) {
@@ -200,7 +175,7 @@ function CouponCard({ coupon, totalPoints, onUpdate }) {
     >
       <div className="cpn-header">
         <div className={`cpn-icon${isOwned ? ' owned' : ''}`}>
-          <Icon size={16} color={isOwned ? '#16a34a' : 'rgba(30,30,30,0.38)'} strokeWidth={1.8} />
+          <Icon size={16} color={isOwned ? '#c4b5fd' : 'rgba(245,245,247,0.4)'} strokeWidth={1.8} />
         </div>
         <div>
           <div className="cpn-title">{coupon.title}</div>
@@ -221,7 +196,7 @@ function CouponCard({ coupon, totalPoints, onUpdate }) {
         <div className="cpn-code-row">
           <span className="cpn-code">{localCode}</span>
           <button className="cpn-copy" onClick={handleCopy}>
-            {copied ? <Check size={13} color="#16a34a" /> : <Copy size={13} />}
+            {copied ? <Check size={13} color="#c4b5fd" /> : <Copy size={13} />}
           </button>
         </div>
       )}
